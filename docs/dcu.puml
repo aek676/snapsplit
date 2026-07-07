@@ -1,0 +1,40 @@
+@startuml
+title SnapSplit
+
+left to right direction
+
+actor "Payer" as payer
+actor "Guest" as guest
+
+usecase "Take receipt photo" as UC_takePhoto
+usecase "Review receipt" as UC_review
+usecase "Edit receipt" as UC_edit
+usecase "Publish session" as UC_publish
+usecase "View session" as UC_viewSession
+usecase "View session (payer)" as UC_viewSessionPayer
+usecase "Close session" as UC_closeSession
+usecase "Share link" as UC_share
+usecase "View guests" as UC_viewGuests
+usecase "Join session" as UC_join
+usecase "Claim items" as UC_claimItems
+
+' Payer relationships
+payer --> UC_takePhoto
+payer --> UC_claimItems
+
+' Relationships between Payer use cases
+UC_takePhoto .down.> UC_review : <<include>>
+UC_edit .up.> UC_review : <<extend>>
+UC_publish .up.> UC_review : <<extend>>
+UC_publish .down.> UC_viewSessionPayer : <<include>>
+UC_viewSessionPayer --|> UC_viewSession
+UC_closeSession .up.> UC_viewSessionPayer : <<extend>>
+
+UC_viewSession .down.> UC_share : <<include>>
+UC_viewSession .down.> UC_viewGuests : <<include>>
+
+' Guest relationships
+guest --> UC_join
+UC_join .> UC_viewSession : <<include>>
+UC_claimItems .left.> UC_viewSession : <<extend>>
+@enduml
