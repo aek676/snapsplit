@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/web"
+    },
+    {
+      "path": "./apps/api"
+    },
+    {
+      "path": "./libs/shared-types"
+    },
+    {
+      "path": "./libs/split-logic"
+    }
+  ]
+}

@@ -1,4 +1,48 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+
+# dependencies
+node_modules
+
+# Nx
+.nx/cache
+.nx/workspace-data
 .nx/polygraph
+
+# caches
+.cache
+coverage
+*.tsbuildinfo
+
+# Vite / Vitest
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+# environment
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editors
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
 .claude/worktrees
 .claude/settings.local.json
-node_modules/
