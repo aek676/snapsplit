@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v2
+
+      - name: Get Bun cache dir
+        id: bun-cache-dir
+        run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Bun cache
+        id: bun-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.bun-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Save Bun cache
+        if: steps.bun-cache.outputs.cache-hit != 'true' && github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.bun-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+
+      - name: Derive appropriate SHAs for base and head for `nx affected` commands
+        uses: nrwl/nx-set-shas@v5
+
+      - name: Check Nx sync
+        run: bunx nx sync:check
+
+      - name: Lint, typecheck, test & build (affected)
+        run: bunx nx affected -t lint tsc:typecheck test build

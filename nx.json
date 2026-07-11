@@ -18,7 +18,8 @@
     ],
     "sharedGlobals": [
       "{workspaceRoot}/tsconfig.base.json",
-      "{workspaceRoot}/biome.json"
+      "{workspaceRoot}/biome.json",
+      "{workspaceRoot}/.github/workflows/ci.yml"
     ]
   },
   "targetDefaults": {
