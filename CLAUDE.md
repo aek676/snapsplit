@@ -1,3 +1,10 @@
+## Project: SnapSplit
+
+This repo is **SnapSplit**. The full specification (roles, flow, data
+model, splitting logic, architecture) lives in
+[`docs/srs.md`](docs/srs.md). Read it before working on the project to
+understand the context and requirements.
+
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 
