@@ -4,7 +4,7 @@ const MONGODB_URI =
   Bun.env.MONGODB_URI ||
   'mongodb://root:example@localhost:27017/snapsplit?authSource=admin';
 
-const DATABASE_NAME = Bun.env.DATABASE_NAME || "snapsplit";
+const DATABASE_NAME = Bun.env.DATABASE_NAME || 'snapsplit';
 
 export async function connectDB() {
   await mongoose.connect(MONGODB_URI);

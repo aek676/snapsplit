@@ -6,7 +6,7 @@ export const claimSchema = new Schema({
     ref: 'Participant',
     required: true,
   },
-  units: Number,
+  units: { type: Number, required: true, min: 0 },
 });
 
 export type Claim = InferSchemaType<typeof claimSchema>;

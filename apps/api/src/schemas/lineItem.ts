@@ -3,9 +3,9 @@ import { claimSchema } from './claim';
 
 export const lineItemSchema = new Schema({
   name: String,
-  quantity: Number,
-  unitPriceCents: Number,
-  lineTotalCents: Number,
+  quantity: { type: Number, min: 0 },
+  unitPriceCents: { type: Number, min: 0 },
+  lineTotalCents: { type: Number, min: 0 },
   claims: [claimSchema],
   aiConfidence: { type: Number, min: 0, max: 1 },
 });

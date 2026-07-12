@@ -16,8 +16,8 @@ const sessionSchema = new Schema(
     },
     merchant: String,
     date: Date,
-    currency: String,
-    totalCents: Number,
+    currency: { type: String, default: 'EUR' },
+    totalCents: { type: Number, min: 0 },
     receiptImageUrl: String,
     closedAt: Date,
     participants: [participantSchema],
@@ -26,7 +26,10 @@ const sessionSchema = new Schema(
   { timestamps: { createdAt: 'createdAt', updatedAt: false } },
 );
 
-sessionSchema.index({ code: 1 }, { unique: true });
+sessionSchema.index(
+  { code: 1 },
+  { unique: true, partialFilterExpression: { code: { $type: 'string' } } },
+);
 sessionSchema.index({ 'participants.deviceToken': 1 });
 
 export type Session = InferSchemaType<typeof sessionSchema>;
