@@ -39,6 +39,13 @@
       "options": {
         "command": "biome format --write {projectRoot}"
       }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "biome format {projectRoot}"
+      }
     }
   }
 }

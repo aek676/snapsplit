@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup toolchain (mise)
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
 
       - name: Get Bun cache dir
         id: bun-cache-dir
@@ -34,7 +34,7 @@ jobs:
 
       - name: Restore Bun cache
         id: bun-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ steps.bun-cache-dir.outputs.dir }}
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
@@ -46,7 +46,7 @@ jobs:
 
       - name: Save Bun cache
         if: steps.bun-cache.outputs.cache-hit != 'true' && github.event_name != 'pull_request'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ steps.bun-cache-dir.outputs.dir }}
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
@@ -57,5 +57,5 @@ jobs:
       - name: Check Nx sync
         run: bunx nx sync:check
 
-      - name: Lint, typecheck, test & build (affected)
-        run: bunx nx affected -t lint tsc:typecheck test build
+      - name: Format, lint, typecheck, test & build (affected)
+        run: bunx nx affected -t format:check lint tsc:typecheck test build

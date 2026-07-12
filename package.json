@@ -16,7 +16,8 @@
     "build": "nx run-many -t build",
     "typecheck": "nx run-many -t tsc:typecheck",
     "test": "nx run-many -t test",
-    "lint": "nx run-many -t lint"
+    "lint": "nx run-many -t lint",
+    "format": "nx run-many -t format"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.3",
@@ -42,7 +43,8 @@
     "nx": "23.0.1",
     "tailwindcss": "^4.3.2",
     "tslib": "^2.3.0",
-    "typescript": "~5.9.2",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "6.0.3",
     "vite": "^8.0.0",
     "vitest": "~4.1.0"
   },

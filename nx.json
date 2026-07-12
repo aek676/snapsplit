@@ -46,6 +46,13 @@
         "default",
         "{workspaceRoot}/biome.json"
       ]
+    },
+    "format:check": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/biome.json"
+      ]
     }
   },
   "plugins": [
