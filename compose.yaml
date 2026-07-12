@@ -1,10 +1,14 @@
 services:
   mongo:
-    image: mongo:8.3.4-noble
+    image: mongo:7.0
     restart: always
+    ports:
+      - 27017:27017
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo-data:/data/db
 
   mongo-express:
     image: mongo-express
@@ -16,3 +20,6 @@ services:
       ME_CONFIG_BASICAUTH_ENABLED: true
       ME_CONFIG_BASICAUTH_USERNAME: user
       ME_CONFIG_BASICAUTH_PASSWORD: pass
+
+volumes:
+  mongo-data:
