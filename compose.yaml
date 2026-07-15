@@ -10,6 +10,15 @@ services:
     volumes:
       - mongo-data:/data/db
 
+  fake-gcs:
+    image: fsouza/fake-gcs-server
+    restart: always
+    command: -scheme http -host 0.0.0.0 -port 4443 -public-host localhost:4443
+    ports:
+      - 4443:4443
+    volumes:
+      - fake-gcs-data:/storage
+
   mongo-express:
     image: mongo-express
     restart: always
@@ -23,3 +32,4 @@ services:
 
 volumes:
   mongo-data:
+  fake-gcs-data:
