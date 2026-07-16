@@ -26,10 +26,5 @@ const sessionView = t.Object({
 });
 export type SessionView = typeof sessionView.static;
 
-/**
- * Response of the analyze endpoint: the freshly created draft session. No owner
- * or device token yet — those are created when the owner enters the session and
- * identifies with a name (SRS §5).
- */
 export const draftSessionResponse = sessionView;
 export type DraftSessionResponse = typeof draftSessionResponse.static;
