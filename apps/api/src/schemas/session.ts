@@ -1,4 +1,4 @@
-import { InferSchemaType, model, Schema } from 'mongoose';
+import { type InferSchemaType, model, Schema } from 'mongoose';
 import { lineItemSchema } from './lineItem';
 import { participantSchema } from './participant';
 

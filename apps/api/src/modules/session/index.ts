@@ -6,7 +6,10 @@ import { SessionService } from './service';
 
 const service = new SessionService(extractReceipt, gcsReceiptStorage);
 
-export const sessionModule = new Elysia({ prefix: '/sessions', name: 'sessions' }).post(
+export const sessionModule = new Elysia({
+  prefix: '/sessions',
+  name: 'sessions',
+}).post(
   '/analyze',
   async ({ body }) => {
     try {

@@ -1,8 +1,5 @@
-import {
-  type ExtractedReceipt,
-  type ExtractReceipt,
-} from '../../ai/receipt';
 import type { HydratedDocument } from 'mongoose';
+import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { type LineItem, Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
 import type { AnalyzeBody, SessionView } from './model';
@@ -68,17 +65,17 @@ export class SessionService {
   constructor(
     private readonly extract: ExtractReceipt,
     private readonly storage: ReceiptStorage,
-  ) { }
+  ) {}
 
   async createDraftFromImage({ image }: AnalyzeBody) {
     const bytes = new Uint8Array(await image.arrayBuffer());
 
     const { id } = await this.storage.save(bytes, image.type);
-    let extracted;
+    let extracted: ExtractedReceipt;
     try {
       extracted = await this.extract(bytes, image.type);
     } catch (error) {
-      await this.storage.delete(id).catch(() => { });
+      await this.storage.delete(id).catch(() => {});
       throw error;
     }
 
