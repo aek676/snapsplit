@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { ExtractedReceipt } from '../../ai/receipt';
 import { Session } from '../../schemas';
-import { buildDraftPayload, type SessionLike, toSessionView } from './service';
+import { buildDraftPayload, toSessionView } from './service';
 
 const extracted: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -64,7 +64,7 @@ describe('toSessionView', () => {
     const payload = buildDraftPayload(extracted, '/receipts/abc.jpg');
     const doc = new Session(payload);
 
-    const view = toSessionView(doc as unknown as SessionLike);
+    const view = toSessionView(doc);
 
     expect(view.id).toBe(String(doc._id));
     expect(view.status).toBe('draft');
@@ -87,7 +87,7 @@ describe('toSessionView', () => {
         '/receipts/x.png',
       ),
     );
-    const view = toSessionView(doc as unknown as SessionLike);
+    const view = toSessionView(doc);
 
     expect(view.merchant).toBeNull();
     expect(view.date).toBeNull();
