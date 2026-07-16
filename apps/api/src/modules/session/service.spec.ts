@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'bun:test';
-import type { ExtractedReceipt } from '../../ai/receipt';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from 'bun:test';
+import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { Session } from '../../schemas';
-import { buildDraftPayload, toSessionView } from './service';
+import type { ReceiptStorage } from '../../storage/receipt-storage';
+import type { SessionModel } from './model';
+import { buildDraftPayload, SessionService, toSessionView } from './service';
 
 const extracted: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -43,7 +53,6 @@ describe('buildDraftPayload', () => {
       aiConfidence: 0.94,
     });
 
-    // No participants yet: the owner is created when they enter the session.
     expect(payload.participants).toHaveLength(0);
   });
 
@@ -60,7 +69,6 @@ describe('buildDraftPayload', () => {
 
 describe('toSessionView', () => {
   it('serializes a session document to the plain API view', () => {
-    // `new Session(...)` builds the document (and subdoc _ids) without touching Mongo.
     const payload = buildDraftPayload(extracted, '/receipts/abc.jpg');
     const doc = new Session(payload);
 
@@ -91,5 +99,102 @@ describe('toSessionView', () => {
 
     expect(view.merchant).toBeNull();
     expect(view.date).toBeNull();
+  });
+});
+
+function imageBody(
+  bytes = new Uint8Array([1, 2, 3]),
+  type = 'image/jpeg',
+): SessionModel['analyzeBody'] {
+  return { image: new File([bytes], 'receipt.jpg', { type }) };
+}
+
+function fakeStorage(overrides: Partial<ReceiptStorage> = {}): ReceiptStorage {
+  return {
+    save: mock(async () => ({ id: 'stored-123' })),
+    get: mock(async () => null),
+    delete: mock(async () => {}),
+    ...overrides,
+  };
+}
+
+describe('SessionService.createDraftFromImage', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('extracts, stores and persists a draft, returning its view', async () => {
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+    const extract = mock<ExtractReceipt>(async () => extracted);
+    const storage = fakeStorage();
+    const service = new SessionService(extract, storage);
+
+    const bytes = new Uint8Array([4, 5, 6, 7]);
+    const result = await service.createDraftFromImage(
+      imageBody(bytes, 'image/png'),
+    );
+
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(extract.mock.calls[0][0]).toEqual(bytes);
+    expect(extract.mock.calls[0][1]).toBe('image/png');
+    expect(storage.save).toHaveBeenCalledTimes(1);
+    expect((storage.save as ReturnType<typeof mock>).mock.calls[0][0]).toEqual(
+      bytes,
+    );
+    expect((storage.save as ReturnType<typeof mock>).mock.calls[0][1]).toBe(
+      'image/png',
+    );
+
+    // The happy path returns the serialized session view, not a status error.
+    expect(result).toMatchObject({
+      status: 'draft',
+      merchant: 'Bar Paco',
+      receiptImageUrl: '/receipts/stored-123',
+    });
+    expect(
+      (result as SessionModel['draftSessionResponse']).lineItems,
+    ).toHaveLength(2);
+  });
+
+  it('returns 502 without storing when extraction fails', async () => {
+    const saveSpy = spyOn(Session.prototype, 'save');
+    const extract = mock<ExtractReceipt>(async () => {
+      throw new Error('gemini exploded');
+    });
+    const storage = fakeStorage();
+    const service = new SessionService(extract, storage);
+
+    const result = await service.createDraftFromImage(imageBody());
+
+    expect(result).toMatchObject({
+      code: 502,
+      response: 'Receipt analysis failed',
+    });
+    expect(storage.save).not.toHaveBeenCalled();
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 and deletes the stored receipt when persistence fails', async () => {
+    spyOn(Session.prototype, 'save').mockRejectedValue(new Error('mongo down'));
+    const extract = mock<ExtractReceipt>(async () => extracted);
+    const storage = fakeStorage();
+    const service = new SessionService(extract, storage);
+
+    const result = await service.createDraftFromImage(imageBody());
+
+    expect(result).toMatchObject({
+      code: 500,
+      response: 'Failed to create draft session',
+    });
+    // The orphaned upload is cleaned up so storage doesn't leak.
+    expect(storage.delete).toHaveBeenCalledWith('stored-123');
   });
 });
