@@ -2,19 +2,15 @@ import { google } from '@ai-sdk/google';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-/**
- * Structured shape the vision model must return. Money is in integer cents to
- * match the Mongoose data model; `aiConfidence` (0-1) flags doubtful lines so
- * the review screen can highlight them (SRS §3, §10).
- */
 export const receiptSchema = z.object({
   merchant: z
     .string()
     .nullable()
     .describe('Merchant/business name, or null if illegible'),
-  date: z
-    .string()
+  date: z.iso
+    .date()
     .nullable()
+    .catch(null)
     .describe('Receipt date as ISO 8601 (YYYY-MM-DD), or null if not present'),
   currency: z
     .string()
@@ -22,22 +18,31 @@ export const receiptSchema = z.object({
   totalCents: z
     .number()
     .int()
+    .min(0)
     .describe('Bill total in integer cents (e.g. 42.30 EUR -> 4230)'),
   lineItems: z
     .array(
       z.object({
         name: z.string().describe('Item name as printed on the receipt'),
-        quantity: z.number().int().describe('Number of units for this line'),
+        quantity: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Number of units for this line'),
         unitPriceCents: z
           .number()
           .int()
+          .min(0)
           .describe('Price per unit in integer cents'),
         lineTotalCents: z
           .number()
           .int()
+          .min(0)
           .describe('Line total in integer cents (quantity * unit price)'),
         aiConfidence: z
           .number()
+          .min(0)
+          .max(1)
           .describe(
             'Confidence for this line between 0 and 1; lower when text/price is unclear',
           ),
