@@ -1,10 +1,5 @@
 import { t } from 'elysia';
 
-export const analyzeBody = t.Object({
-  image: t.File({ type: 'image', maxSize: '10m' }),
-});
-export type AnalyzeBody = typeof analyzeBody.static;
-
 const lineItemView = t.Object({
   id: t.String(),
   name: t.String(),
@@ -24,7 +19,16 @@ const sessionView = t.Object({
   receiptImageUrl: t.String(),
   lineItems: t.Array(lineItemView),
 });
-export type SessionView = typeof sessionView.static;
 
-export const draftSessionResponse = sessionView;
-export type DraftSessionResponse = typeof draftSessionResponse.static;
+export const SessionModel = {
+  analyzeBody: t.Object({
+    image: t.File({ type: 'image', maxSize: '10m' }),
+  }),
+  draftSessionResponse: sessionView,
+  analysisFailed: t.Literal('Receipt analysis failed'),
+  draftCreationFailed: t.Literal('Failed to create draft session'),
+} as const;
+
+export type SessionModel = {
+  [K in keyof typeof SessionModel]: (typeof SessionModel)[K]['static'];
+};

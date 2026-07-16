@@ -1,8 +1,9 @@
+import { status } from 'elysia';
 import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { type LineItem, Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
-import type { AnalyzeBody, SessionView } from './model';
+import { SessionModel } from './model';
 
 type LineItemInput = Pick<
   LineItem,
@@ -41,7 +42,9 @@ export function buildDraftPayload(
   };
 }
 
-export function toSessionView(session: HydratedDocument<Session>): SessionView {
+export function toSessionView(
+  session: HydratedDocument<Session>,
+): SessionModel['draftSessionResponse'] {
   return {
     id: String(session._id),
     status: session.status,
@@ -67,21 +70,26 @@ export class SessionService {
     private readonly storage: ReceiptStorage,
   ) {}
 
-  async createDraftFromImage({ image }: AnalyzeBody) {
+  async createDraftFromImage({ image }: SessionModel['analyzeBody']) {
     const bytes = new Uint8Array(await image.arrayBuffer());
 
-    const { id } = await this.storage.save(bytes, image.type);
     let extracted: ExtractedReceipt;
     try {
       extracted = await this.extract(bytes, image.type);
     } catch (error) {
-      await this.storage.delete(id).catch(() => {});
-      throw error;
+      console.error('Receipt extraction failed:', error);
+      return status(502, SessionModel.analysisFailed.const);
     }
 
-    const payload = buildDraftPayload(extracted, `/receipts/${id}`);
-    const session = await new Session(payload).save();
-
-    return toSessionView(session);
+    const { id } = await this.storage.save(bytes, image.type);
+    try {
+      const payload = buildDraftPayload(extracted, `/receipts/${id}`);
+      const session = await new Session(payload).save();
+      return toSessionView(session);
+    } catch (error) {
+      await this.storage.delete(id).catch(() => {});
+      console.error('Failed to persist draft session:', error);
+      return status(500, SessionModel.draftCreationFailed.const);
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { Elysia, status, t } from 'elysia';
+import { Elysia } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { gcsReceiptStorage } from '../../storage/gcs';
-import { analyzeBody, draftSessionResponse } from './model';
+import { SessionModel } from './model';
 import { SessionService } from './service';
 
 const service = new SessionService(extractReceipt, gcsReceiptStorage);
@@ -9,25 +9,21 @@ const service = new SessionService(extractReceipt, gcsReceiptStorage);
 export const sessionModule = new Elysia({
   prefix: '/sessions',
   name: 'sessions',
-}).post(
-  '/analyze',
-  async ({ body }) => {
-    try {
-      return await service.createDraftFromImage(body);
-    } catch (error) {
-      console.error('Receipt analysis failed:', error);
-      return status(502, 'Receipt analysis failed');
-    }
-  },
-  {
-    body: analyzeBody,
+})
+  .onError(({ code, error, status }) => {
+    if (code === 'VALIDATION') return;
+    console.error('Unexpected error creating draft session:', error);
+    return status(500, SessionModel.draftCreationFailed.const);
+  })
+  .post('/analyze', ({ body }) => service.createDraftFromImage(body), {
+    body: SessionModel.analyzeBody,
     response: {
-      200: draftSessionResponse,
-      502: t.String(),
+      200: SessionModel.draftSessionResponse,
+      500: SessionModel.draftCreationFailed,
+      502: SessionModel.analysisFailed,
     },
     detail: {
       summary: 'Analyze a receipt photo and create a draft session',
       tags: ['Sessions'],
     },
-  },
-);
+  });
