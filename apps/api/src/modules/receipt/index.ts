@@ -10,7 +10,7 @@ export const receiptModule = new Elysia({
     const file = await gcsReceiptStorage.get(fileId);
     if (!file) return status(404, 'Not found');
 
-    return new Response(Uint8Array.from(file.bytes), {
+    return new Response(new Uint8Array(file.bytes), {
       headers: { 'content-type': file.mediaType },
     });
   },
