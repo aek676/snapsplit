@@ -1,2 +1,6 @@
 [install]
 linker = "hoisted"
+
+[test]
+coverage = true
+coverageReporter = ["text", "lcov"]
