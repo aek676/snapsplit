@@ -17,13 +17,13 @@ const sessionSchema = new Schema(
     merchant: String,
     date: Date,
     currency: { type: String, default: 'EUR' },
-    totalCents: { type: Number, min: 0 },
-    receiptImageUrl: String,
+    totalCents: { type: Number, min: 0, default: 0 },
+    receiptImageUrl: { type: String, default: '' },
     closedAt: Date,
     participants: [participantSchema],
     lineItems: [lineItemSchema],
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: false } },
+  { timestamps: { createdAt: true, updatedAt: false } },
 );
 
 sessionSchema.index(
