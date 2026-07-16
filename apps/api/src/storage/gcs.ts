@@ -15,21 +15,6 @@ function extFromMediaType(mediaType: string): string {
   return EXT_BY_MEDIA_TYPE[mediaType] ?? 'bin';
 }
 
-/**
- * Google Cloud Storage implementation of {@link ReceiptStorage}.
- *
- * - Production: `new Storage()` resolves credentials via ADC (the runtime's
- *   service account on Cloud Run/GKE).
- * - Development: when `GCS_EMULATOR_HOST` is set, the client targets the
- *   fake-gcs-server emulator (compose.yaml) — same code path, no GCP creds.
- *   We deliberately do NOT use the SDK-reserved `STORAGE_EMULATOR_HOST`: when
- *   that env var is present the SDK enters an auto-emulator mode that conflicts
- *   with our explicit `apiEndpoint` and 404s uploads/downloads against
- *   fake-gcs. Passing `apiEndpoint` ourselves is the reliable path.
- *
- * The bucket handle is created lazily on first use so that importing this module
- * (e.g. in unit tests) does not require `GCS_BUCKET` to be set.
- */
 export class GcsReceiptStorage implements ReceiptStorage {
   private bucketInstance?: Bucket;
   private ensured = false;
@@ -52,7 +37,6 @@ export class GcsReceiptStorage implements ReceiptStorage {
     return this.bucketInstance;
   }
 
-  /** In dev the emulator starts empty, so create the bucket on first use. */
   private async ensureBucket(): Promise<void> {
     if (!this.isEmulator || this.ensured) return;
     const [exists] = await this.bucket().exists();
