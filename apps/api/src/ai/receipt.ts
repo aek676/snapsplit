@@ -2,6 +2,10 @@ import { google } from '@ai-sdk/google';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
+const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
+const MAX_ATTEMPTS = Number(Bun.env.RECEIPT_EXTRACTION_MAX_ATTEMPTS ?? 3);
+const SUM_TOLERANCE_CENTS = 0;
+
 export const receiptSchema = z.object({
   merchant: z
     .string()
@@ -53,7 +57,18 @@ export const receiptSchema = z.object({
 
 export type ExtractedReceipt = z.infer<typeof receiptSchema>;
 
-const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
+export const isReceiptConsistent = (receipt: ExtractedReceipt): boolean => {
+  if (receipt.lineItems.length === 0 || receipt.totalCents <= 0) return false;
+
+  let sum = 0;
+  for (const item of receipt.lineItems) {
+    if (item.quantity * item.unitPriceCents !== item.lineTotalCents)
+      return false;
+    sum += item.lineTotalCents;
+  }
+
+  return Math.abs(sum - receipt.totalCents) <= SUM_TOLERANCE_CENTS;
+};
 
 const PROMPT = `You are extracting structured data from a photo of a bar/restaurant receipt.
 Return every line item you can read, with quantity, unit price and line total.
@@ -62,29 +77,33 @@ Use the receipt's currency; if you cannot tell, use "EUR".
 For each line, set aiConfidence between 0 and 1 — lower it when the text or price is blurry, ambiguous or partially cut off.
 If the merchant name or date is illegible, return null for that field.`;
 
-/**
- * Signature used by the session service. Kept as a standalone type so it can be
- * dependency-injected (and stubbed in tests without hitting the network).
- */
 export type ExtractReceipt = (
   imageBytes: Uint8Array,
   mediaType: string,
 ) => Promise<ExtractedReceipt>;
 
 export const extractReceipt: ExtractReceipt = async (imageBytes, mediaType) => {
-  const { output } = await generateText({
-    model: google(MODEL),
-    output: Output.object({ schema: receiptSchema }),
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: PROMPT },
-          { type: 'file', mediaType, data: imageBytes },
-        ],
-      },
-    ],
-  });
+  let last: ExtractedReceipt | undefined;
 
-  return output;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const { output } = await generateText({
+      model: google(MODEL),
+      output: Output.object({ schema: receiptSchema }),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: PROMPT },
+            { type: 'file', mediaType, data: imageBytes },
+          ],
+        },
+      ],
+    });
+
+    last = output;
+    if (isReceiptConsistent(output)) return output;
+  }
+
+  if (!last) throw new Error('Receipt extraction produced no output');
+  return last;
 };
