@@ -409,6 +409,20 @@ describe('SessionService.deleteLineItem', () => {
     expect(result.totalCents).toBe(3630);
   });
 
+  it('clamps the session total at 0 instead of going negative', async () => {
+    const session = draftSession();
+    session.totalCents = 100;
+    const id = String(session.lineItems[0]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().deleteLineItem(
+      'sid',
+      id,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(0);
+  });
+
   it('returns 404 when the session is missing', async () => {
     spyOn(Session, 'findById').mockResolvedValue(null);
 

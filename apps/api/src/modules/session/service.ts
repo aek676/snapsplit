@@ -166,7 +166,10 @@ export class SessionService {
     const lineItem = session.lineItems.id(lineItemId);
     if (!lineItem) return status(404, SessionModel.lineItemNotFound.const);
 
-    session.totalCents -= lineItem.lineTotalCents;
+    session.totalCents = Math.max(
+      0,
+      session.totalCents - lineItem.lineTotalCents,
+    );
     session.lineItems.pull(lineItemId);
     await session.save();
     return toSessionView(session);

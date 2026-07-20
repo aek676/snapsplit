@@ -281,3 +281,87 @@ describe('line item routes (controller)', () => {
     expect(await res.text()).toBe('Unexpected server error');
   });
 });
+
+describe('GET /sessions/:sessionId (controller)', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('returns 200 with the session view', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(draftSession());
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      new Request('http://localhost/sessions/sid', { method: 'GET' }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ status: 'draft', totalCents: 600 });
+    expect(body.lineItems).toHaveLength(1);
+  });
+
+  it('returns 404 when the session is missing', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(null);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      new Request('http://localhost/sessions/sid', { method: 'GET' }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Session not found');
+  });
+});
+
+describe('DELETE /sessions/:sessionId/line-items/:lineItemId (controller)', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('removes the line and returns 200 with the updated view', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[0]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      new Request(`http://localhost/sessions/sid/line-items/${id}`, {
+        method: 'DELETE',
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.lineItems).toHaveLength(0);
+    expect(body.totalCents).toBe(0);
+  });
+
+  it('returns 404 when the line item is missing', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(draftSession());
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      new Request(
+        'http://localhost/sessions/sid/line-items/507f1f77bcf86cd799439011',
+        { method: 'DELETE' },
+      ),
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Line item not found');
+  });
+});
