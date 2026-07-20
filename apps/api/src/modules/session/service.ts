@@ -1,5 +1,5 @@
 import { status } from 'elysia';
-import type { HydratedDocument } from 'mongoose';
+import { type HydratedDocument, Error as MongooseError } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { type LineItem, Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
@@ -91,5 +91,58 @@ export class SessionService {
       console.error('Failed to persist draft session:', error);
       return status(500, SessionModel.draftCreationFailed.const);
     }
+  }
+
+  private async findSession(sessionId: string) {
+    try {
+      return await Session.findById(sessionId);
+    } catch (error) {
+      if (error instanceof MongooseError.CastError) return null;
+      throw error;
+    }
+  }
+
+  async addLineItem(
+    sessionId: string,
+    input: SessionModel['lineItemCreateBody'],
+  ) {
+    const session = await this.findSession(sessionId);
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
+    if (session.status !== 'draft')
+      return status(409, SessionModel.sessionNotDraft.const);
+
+    session.lineItems.push({
+      name: input.name,
+      quantity: input.quantity,
+      unitPriceCents: input.unitPriceCents,
+      lineTotalCents: input.quantity * input.unitPriceCents,
+      aiConfidence: 1,
+    });
+    await session.save();
+    return toSessionView(session);
+  }
+
+  async updateLineItem(
+    sessionId: string,
+    lineItemId: string,
+    patch: SessionModel['lineItemUpdateBody'],
+  ) {
+    const session = await this.findSession(sessionId);
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
+    if (session.status !== 'draft')
+      return status(409, SessionModel.sessionNotDraft.const);
+
+    const lineItem = session.lineItems.id(lineItemId);
+    if (!lineItem) return status(404, SessionModel.lineItemNotFound.const);
+
+    if (patch.name !== undefined) lineItem.name = patch.name;
+    if (patch.quantity !== undefined) lineItem.quantity = patch.quantity;
+    if (patch.unitPriceCents !== undefined)
+      lineItem.unitPriceCents = patch.unitPriceCents;
+    if (patch.quantity !== undefined || patch.unitPriceCents !== undefined)
+      lineItem.lineTotalCents = lineItem.quantity * lineItem.unitPriceCents;
+
+    await session.save();
+    return toSessionView(session);
   }
 }

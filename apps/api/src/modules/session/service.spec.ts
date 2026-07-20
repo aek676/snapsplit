@@ -7,6 +7,7 @@ import {
   mock,
   spyOn,
 } from 'bun:test';
+import { Error as MongooseError } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
@@ -196,5 +197,181 @@ describe('SessionService.createDraftFromImage', () => {
     });
     // The orphaned upload is cleaned up so storage doesn't leak.
     expect(storage.delete).toHaveBeenCalledWith('stored-123');
+  });
+});
+
+function draftSession() {
+  return new Session(buildDraftPayload(extracted, '/receipts/abc.jpg'));
+}
+
+function lineItemService() {
+  return new SessionService(
+    mock<ExtractReceipt>(async () => extracted),
+    fakeStorage(),
+  );
+}
+
+describe('SessionService.addLineItem', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('appends a hand-entered line with a computed total and full confidence', async () => {
+    const session = draftSession();
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().addLineItem('sid', {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(session.lineItems).toHaveLength(3);
+    expect(result.lineItems[2]).toMatchObject({
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+      lineTotalCents: 600,
+      aiConfidence: 1,
+    });
+  });
+
+  it('returns 404 when the session is missing', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(null);
+
+    const result = await lineItemService().addLineItem('sid', {
+      name: 'Vino',
+      quantity: 1,
+      unitPriceCents: 100,
+    });
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = draftSession();
+    session.status = 'open';
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = await lineItemService().addLineItem('sid', {
+      name: 'Vino',
+      quantity: 1,
+      unitPriceCents: 100,
+    });
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+  });
+
+  it('returns 404 when the session id is malformed', async () => {
+    spyOn(Session, 'findById').mockRejectedValue(
+      new MongooseError.CastError('ObjectId', 'nope', 'sessionId'),
+    );
+
+    const result = await lineItemService().addLineItem('nope', {
+      name: 'Vino',
+      quantity: 1,
+      unitPriceCents: 100,
+    });
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+});
+
+describe('SessionService.updateLineItem', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('recomputes the line total when quantity changes', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[0]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().updateLineItem('sid', id, {
+      quantity: 5,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0]).toMatchObject({
+      quantity: 5,
+      unitPriceCents: 200,
+      lineTotalCents: 1000,
+    });
+  });
+
+  it('leaves the total untouched when only the name changes', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[0]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().updateLineItem('sid', id, {
+      name: 'Cerveza',
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0]).toMatchObject({
+      name: 'Cerveza',
+      lineTotalCents: 600,
+    });
+  });
+
+  it('returns 404 when the session is missing', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(null);
+
+    const result = await lineItemService().updateLineItem('sid', 'lid', {
+      name: 'x',
+    });
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+
+  it('returns 404 when the line item is missing', async () => {
+    const session = draftSession();
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = await lineItemService().updateLineItem(
+      'sid',
+      '507f1f77bcf86cd799439011',
+      { name: 'x' },
+    );
+
+    expect(result).toMatchObject({
+      code: 404,
+      response: 'Line item not found',
+    });
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = draftSession();
+    session.status = 'closed';
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = await lineItemService().updateLineItem('sid', 'lid', {
+      name: 'x',
+    });
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
   });
 });
