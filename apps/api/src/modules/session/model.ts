@@ -20,13 +20,27 @@ const sessionView = t.Object({
   lineItems: t.Array(lineItemView),
 });
 
+const lineItemCreateBody = t.Object({
+  name: t.String({ minLength: 1 }),
+  quantity: t.Integer({ minimum: 0 }),
+  unitPriceCents: t.Integer({ minimum: 0 }),
+});
+
 export const SessionModel = {
   analyzeBody: t.Object({
     image: t.File({ type: 'image', maxSize: '10m' }),
   }),
+  sessionParams: t.Object({ sessionId: t.String() }),
+  lineItemParams: t.Object({ sessionId: t.String(), lineItemId: t.String() }),
+  lineItemCreateBody,
+  lineItemUpdateBody: t.Partial(lineItemCreateBody),
   draftSessionResponse: sessionView,
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
+  internalError: t.Literal('Unexpected server error'),
+  sessionNotFound: t.Literal('Session not found'),
+  lineItemNotFound: t.Literal('Line item not found'),
+  sessionNotDraft: t.Literal('Session is not editable'),
 } as const;
 
 export type SessionModel = {

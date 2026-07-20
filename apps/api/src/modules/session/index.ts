@@ -1,4 +1,4 @@
-import { Elysia } from 'elysia';
+import { Elysia, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { gcsReceiptStorage } from '../../storage/gcs';
 import { SessionModel } from './model';
@@ -11,21 +11,97 @@ export function createSessionModule(service: SessionService) {
   })
     .onError(({ code, error, status }) => {
       if (code === 'VALIDATION') return;
-      console.error('Unexpected error creating draft session:', error);
-      return status(500, SessionModel.draftCreationFailed.const);
+      console.error('Unexpected error in sessions module:', error);
+      return status(500, SessionModel.internalError.const);
     })
     .post('/analyze', ({ body }) => service.createDraftFromImage(body), {
       body: SessionModel.analyzeBody,
       response: {
         200: SessionModel.draftSessionResponse,
-        500: SessionModel.draftCreationFailed,
+        500: t.Union([
+          SessionModel.draftCreationFailed,
+          SessionModel.internalError,
+        ]),
         502: SessionModel.analysisFailed,
       },
       detail: {
         summary: 'Analyze a receipt photo and create a draft session',
         tags: ['Sessions'],
       },
-    });
+    })
+    .get('/:sessionId', ({ params }) => service.getSession(params.sessionId), {
+      params: SessionModel.sessionParams,
+      response: {
+        200: SessionModel.draftSessionResponse,
+        404: SessionModel.sessionNotFound,
+        500: SessionModel.internalError,
+      },
+      detail: {
+        summary: 'Get a session by id',
+        tags: ['Sessions'],
+      },
+    })
+    .post(
+      '/:sessionId/line-items',
+      ({ params, body }) => service.addLineItem(params.sessionId, body),
+      {
+        params: SessionModel.sessionParams,
+        body: SessionModel.lineItemCreateBody,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          404: SessionModel.sessionNotFound,
+          409: SessionModel.sessionNotDraft,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Add a line item to a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .patch(
+      '/:sessionId/line-items/:lineItemId',
+      ({ params, body }) =>
+        service.updateLineItem(params.sessionId, params.lineItemId, body),
+      {
+        params: SessionModel.lineItemParams,
+        body: SessionModel.lineItemUpdateBody,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          404: t.Union([
+            SessionModel.sessionNotFound,
+            SessionModel.lineItemNotFound,
+          ]),
+          409: SessionModel.sessionNotDraft,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Edit a line item on a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .delete(
+      '/:sessionId/line-items/:lineItemId',
+      ({ params }) =>
+        service.deleteLineItem(params.sessionId, params.lineItemId),
+      {
+        params: SessionModel.lineItemParams,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          404: t.Union([
+            SessionModel.sessionNotFound,
+            SessionModel.lineItemNotFound,
+          ]),
+          409: SessionModel.sessionNotDraft,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Delete a line item from a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    );
 }
 
 export const sessionModule = createSessionModule(
