@@ -61,7 +61,7 @@ const PNG_BYTES = Uint8Array.from(
 const imageFile = (type = 'image/png') =>
   new File([PNG_BYTES], 'receipt.png', { type });
 
-describe('POST /sessions/analyze (controller)', () => {
+describe('POST /sessions/analyze', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
     spyOn(Session.prototype, 'save').mockImplementation(async function (
@@ -162,7 +162,7 @@ function draftSession() {
   return new Session(buildDraftPayload(extracted, '/receipts/abc.jpg'));
 }
 
-describe('line item routes (controller)', () => {
+describe('line item routes', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
     spyOn(Session.prototype, 'save').mockImplementation(async function (
@@ -282,7 +282,7 @@ describe('line item routes (controller)', () => {
   });
 });
 
-describe('GET /sessions/:sessionId (controller)', () => {
+describe('GET /sessions/:sessionId', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -318,7 +318,7 @@ describe('GET /sessions/:sessionId (controller)', () => {
   });
 });
 
-describe('DELETE /sessions/:sessionId/line-items/:lineItemId (controller)', () => {
+describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
     spyOn(Session.prototype, 'save').mockImplementation(async function (
