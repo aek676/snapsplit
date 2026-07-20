@@ -70,6 +70,26 @@ export const isReceiptConsistent = (receipt: ExtractedReceipt): boolean => {
   return Math.abs(sum - receipt.totalCents) <= SUM_TOLERANCE_CENTS;
 };
 
+export const receiptScore = (receipt: ExtractedReceipt): number => {
+  if (receipt.lineItems.length === 0 || receipt.totalCents <= 0) return 0;
+
+  let sum = 0;
+  let matchingLines = 0;
+  let confidenceSum = 0;
+  for (const item of receipt.lineItems) {
+    if (item.quantity * item.unitPriceCents === item.lineTotalCents)
+      matchingLines += 1;
+    sum += item.lineTotalCents;
+    confidenceSum += item.aiConfidence;
+  }
+
+  const lineRatio = matchingLines / receipt.lineItems.length;
+  const totalError = Math.abs(sum - receipt.totalCents) / receipt.totalCents;
+  const avgConfidence = confidenceSum / receipt.lineItems.length;
+
+  return lineRatio * 100 + (1 - Math.min(totalError, 1)) * 10 + avgConfidence;
+};
+
 const PROMPT = `You are extracting structured data from a photo of a bar/restaurant receipt.
 Return every line item you can read, with quantity, unit price and line total.
 All monetary amounts MUST be integer cents (multiply the printed amount by 100, no decimals).
@@ -83,7 +103,8 @@ export type ExtractReceipt = (
 ) => Promise<ExtractedReceipt>;
 
 export const extractReceipt: ExtractReceipt = async (imageBytes, mediaType) => {
-  let last: ExtractedReceipt | undefined;
+  let best: ExtractedReceipt | undefined;
+  let bestScore = -Infinity;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const { output } = await generateText({
@@ -100,10 +121,15 @@ export const extractReceipt: ExtractReceipt = async (imageBytes, mediaType) => {
       ],
     });
 
-    last = output;
     if (isReceiptConsistent(output)) return output;
+
+    const score = receiptScore(output);
+    if (score > bestScore) {
+      best = output;
+      bestScore = score;
+    }
   }
 
-  if (!last) throw new Error('Receipt extraction produced no output');
-  return last;
+  if (!best) throw new Error('Receipt extraction produced no output');
+  return best;
 };

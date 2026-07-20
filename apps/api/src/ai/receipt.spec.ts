@@ -46,7 +46,9 @@ let model: MockLanguageModelV4;
 const google = mock(() => model);
 mock.module('@ai-sdk/google', () => ({ google }));
 
-const { extractReceipt, isReceiptConsistent } = await import('./receipt');
+const { extractReceipt, isReceiptConsistent, receiptScore } = await import(
+  './receipt'
+);
 
 const withOutputs = (...raws: unknown[]) => {
   model = new MockLanguageModelV4({
@@ -106,6 +108,39 @@ describe('isReceiptConsistent', () => {
   });
 });
 
+describe('receiptScore', () => {
+  it('scores a consistent receipt higher than one with mismatched lines', () => {
+    const mismatched: ExtractedReceipt = {
+      ...consistent,
+      lineItems: [lineItem({ lineTotalCents: 999 }), consistent.lineItems[1]],
+    };
+
+    expect(receiptScore(consistent)).toBeGreaterThan(receiptScore(mismatched));
+  });
+
+  it('returns 0 for an empty receipt', () => {
+    expect(receiptScore({ ...consistent, lineItems: [] })).toBe(0);
+  });
+
+  it('returns 0 for a non-positive total', () => {
+    expect(receiptScore({ ...consistent, totalCents: 0 })).toBe(0);
+  });
+
+  it('breaks arithmetic ties by higher average confidence', () => {
+    const moreConfident: ExtractedReceipt = {
+      ...consistent,
+      lineItems: consistent.lineItems.map((item) => ({
+        ...item,
+        aiConfidence: 1,
+      })),
+    };
+
+    expect(receiptScore(moreConfident)).toBeGreaterThan(
+      receiptScore(consistent),
+    );
+  });
+});
+
 describe('extractReceipt', () => {
   beforeEach(() => {
     google.mockClear();
@@ -129,17 +164,19 @@ describe('extractReceipt', () => {
     expect(model.doGenerateCalls).toHaveLength(2);
   });
 
-  it('returns the last best-effort extraction when none are consistent', async () => {
-    const last: ExtractedReceipt = { ...consistent, totalCents: 2 };
-    withOutputs(
-      { ...consistent, totalCents: 1 },
-      { ...consistent, totalCents: 1 },
-      last,
-    );
+  it('returns the highest-scoring extraction when none are consistent, not the last', async () => {
+    // Attempt 2 has matching lines and a total that is off by 1 cent, so it
+    // scores highest even though it is not the last attempt.
+    const best: ExtractedReceipt = { ...consistent, totalCents: 951 };
+    const last: ExtractedReceipt = {
+      ...consistent,
+      lineItems: [lineItem({ lineTotalCents: 999 }), consistent.lineItems[1]],
+    };
+    withOutputs({ ...consistent, totalCents: 1 }, best, last);
 
     const result = await extract();
 
-    expect(result).toEqual(last);
+    expect(result).toEqual(best);
     expect(model.doGenerateCalls).toHaveLength(3);
   });
 
