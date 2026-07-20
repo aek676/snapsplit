@@ -243,6 +243,7 @@ describe('SessionService.addLineItem', () => {
       lineTotalCents: 600,
       aiConfidence: 1,
     });
+    expect(result.totalCents).toBe(4830);
   });
 
   it('returns 404 when the session is missing', async () => {
@@ -317,6 +318,7 @@ describe('SessionService.updateLineItem', () => {
       unitPriceCents: 200,
       lineTotalCents: 1000,
     });
+    expect(result.totalCents).toBe(4630);
   });
 
   it('leaves the total untouched when only the name changes', async () => {
@@ -332,6 +334,7 @@ describe('SessionService.updateLineItem', () => {
       name: 'Cerveza',
       lineTotalCents: 600,
     });
+    expect(result.totalCents).toBe(4230);
   });
 
   it('returns 404 when the session is missing', async () => {

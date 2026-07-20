@@ -12,13 +12,16 @@ export function createSessionModule(service: SessionService) {
     .onError(({ code, error, status }) => {
       if (code === 'VALIDATION') return;
       console.error('Unexpected error in sessions module:', error);
-      return status(500, SessionModel.draftCreationFailed.const);
+      return status(500, SessionModel.internalError.const);
     })
     .post('/analyze', ({ body }) => service.createDraftFromImage(body), {
       body: SessionModel.analyzeBody,
       response: {
         200: SessionModel.draftSessionResponse,
-        500: SessionModel.draftCreationFailed,
+        500: t.Union([
+          SessionModel.draftCreationFailed,
+          SessionModel.internalError,
+        ]),
         502: SessionModel.analysisFailed,
       },
       detail: {
@@ -36,7 +39,7 @@ export function createSessionModule(service: SessionService) {
           200: SessionModel.draftSessionResponse,
           404: SessionModel.sessionNotFound,
           409: SessionModel.sessionNotDraft,
-          500: SessionModel.draftCreationFailed,
+          500: SessionModel.internalError,
         },
         detail: {
           summary: 'Add a line item to a draft session',
@@ -58,7 +61,7 @@ export function createSessionModule(service: SessionService) {
             SessionModel.lineItemNotFound,
           ]),
           409: SessionModel.sessionNotDraft,
-          500: SessionModel.draftCreationFailed,
+          500: SessionModel.internalError,
         },
         detail: {
           summary: 'Edit a line item on a draft session',

@@ -264,4 +264,20 @@ describe('line item routes (controller)', () => {
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('Line item not found');
   });
+
+  it('POST maps an unexpected error to 500 via onError', async () => {
+    spyOn(Session, 'findById').mockRejectedValue(new Error('mongo down'));
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      jsonRequest('/sessions/sid/line-items', 'POST', {
+        name: 'Vino',
+        quantity: 1,
+        unitPriceCents: 100,
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('Unexpected server error');
+  });
 });

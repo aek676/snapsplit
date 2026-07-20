@@ -111,13 +111,15 @@ export class SessionService {
     if (session.status !== 'draft')
       return status(409, SessionModel.sessionNotDraft.const);
 
+    const lineTotalCents = input.quantity * input.unitPriceCents;
     session.lineItems.push({
       name: input.name,
       quantity: input.quantity,
       unitPriceCents: input.unitPriceCents,
-      lineTotalCents: input.quantity * input.unitPriceCents,
+      lineTotalCents,
       aiConfidence: 1,
     });
+    session.totalCents += lineTotalCents;
     await session.save();
     return toSessionView(session);
   }
@@ -139,8 +141,11 @@ export class SessionService {
     if (patch.quantity !== undefined) lineItem.quantity = patch.quantity;
     if (patch.unitPriceCents !== undefined)
       lineItem.unitPriceCents = patch.unitPriceCents;
-    if (patch.quantity !== undefined || patch.unitPriceCents !== undefined)
+    if (patch.quantity !== undefined || patch.unitPriceCents !== undefined) {
+      const previousLineTotalCents = lineItem.lineTotalCents;
       lineItem.lineTotalCents = lineItem.quantity * lineItem.unitPriceCents;
+      session.totalCents += lineItem.lineTotalCents - previousLineTotalCents;
+    }
 
     await session.save();
     return toSessionView(session);
