@@ -378,3 +378,124 @@ describe('SessionService.updateLineItem', () => {
     });
   });
 });
+
+describe('SessionService.deleteLineItem', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('removes the line and subtracts its total from the session', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[0]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().deleteLineItem(
+      'sid',
+      id,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(session.lineItems).toHaveLength(1);
+    expect(result.lineItems).toHaveLength(1);
+    expect(result.lineItems[0]).toMatchObject({ name: 'Tapa' });
+    expect(result.totalCents).toBe(3630);
+  });
+
+  it('returns 404 when the session is missing', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(null);
+
+    const result = await lineItemService().deleteLineItem('sid', 'lid');
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+
+  it('returns 404 when the line item is missing', async () => {
+    const session = draftSession();
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = await lineItemService().deleteLineItem(
+      'sid',
+      '507f1f77bcf86cd799439011',
+    );
+
+    expect(result).toMatchObject({
+      code: 404,
+      response: 'Line item not found',
+    });
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = draftSession();
+    session.status = 'closed';
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = await lineItemService().deleteLineItem('sid', 'lid');
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+  });
+
+  it('returns 404 when the session id is malformed', async () => {
+    spyOn(Session, 'findById').mockRejectedValue(
+      new MongooseError.CastError('ObjectId', 'nope', 'sessionId'),
+    );
+
+    const result = await lineItemService().deleteLineItem('nope', 'lid');
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+});
+
+describe('SessionService.getSession', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('returns the session view for an existing session', async () => {
+    const session = draftSession();
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().getSession(
+      'sid',
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result).toMatchObject({
+      status: 'draft',
+      merchant: 'Bar Paco',
+      totalCents: 4230,
+    });
+    expect(result.lineItems).toHaveLength(2);
+  });
+
+  it('returns 404 when the session is missing', async () => {
+    spyOn(Session, 'findById').mockResolvedValue(null);
+
+    const result = await lineItemService().getSession('sid');
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+
+  it('returns 404 when the session id is malformed', async () => {
+    spyOn(Session, 'findById').mockRejectedValue(
+      new MongooseError.CastError('ObjectId', 'nope', 'sessionId'),
+    );
+
+    const result = await lineItemService().getSession('nope');
+
+    expect(result).toMatchObject({ code: 404, response: 'Session not found' });
+  });
+});

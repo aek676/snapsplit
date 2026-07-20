@@ -29,6 +29,18 @@ export function createSessionModule(service: SessionService) {
         tags: ['Sessions'],
       },
     })
+    .get('/:sessionId', ({ params }) => service.getSession(params.sessionId), {
+      params: SessionModel.sessionParams,
+      response: {
+        200: SessionModel.draftSessionResponse,
+        404: SessionModel.sessionNotFound,
+        500: SessionModel.internalError,
+      },
+      detail: {
+        summary: 'Get a session by id',
+        tags: ['Sessions'],
+      },
+    })
     .post(
       '/:sessionId/line-items',
       ({ params, body }) => service.addLineItem(params.sessionId, body),
@@ -65,6 +77,27 @@ export function createSessionModule(service: SessionService) {
         },
         detail: {
           summary: 'Edit a line item on a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .delete(
+      '/:sessionId/line-items/:lineItemId',
+      ({ params }) =>
+        service.deleteLineItem(params.sessionId, params.lineItemId),
+      {
+        params: SessionModel.lineItemParams,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          404: t.Union([
+            SessionModel.sessionNotFound,
+            SessionModel.lineItemNotFound,
+          ]),
+          409: SessionModel.sessionNotDraft,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Delete a line item from a draft session',
           tags: ['Sessions'],
         },
       },

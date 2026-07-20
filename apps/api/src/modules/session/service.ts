@@ -102,6 +102,12 @@ export class SessionService {
     }
   }
 
+  async getSession(sessionId: string) {
+    const session = await this.findSession(sessionId);
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
+    return toSessionView(session);
+  }
+
   async addLineItem(
     sessionId: string,
     input: SessionModel['lineItemCreateBody'],
@@ -147,6 +153,21 @@ export class SessionService {
       session.totalCents += lineItem.lineTotalCents - previousLineTotalCents;
     }
 
+    await session.save();
+    return toSessionView(session);
+  }
+
+  async deleteLineItem(sessionId: string, lineItemId: string) {
+    const session = await this.findSession(sessionId);
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
+    if (session.status !== 'draft')
+      return status(409, SessionModel.sessionNotDraft.const);
+
+    const lineItem = session.lineItems.id(lineItemId);
+    if (!lineItem) return status(404, SessionModel.lineItemNotFound.const);
+
+    session.totalCents -= lineItem.lineTotalCents;
+    session.lineItems.pull(lineItemId);
     await session.save();
     return toSessionView(session);
   }
