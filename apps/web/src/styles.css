@@ -1,2 +1,112 @@
 @import "tailwindcss";
+
+@import "@fontsource/playfair-display/500.css";
+@import "@fontsource/hanken-grotesk/400.css";
+@import "@fontsource/hanken-grotesk/500.css";
+@import "@fontsource/hanken-grotesk/600.css";
+
 @source "../../../libs";
+
+@theme {
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: #f7f3f0;
+  --color-surface: #ffffff;
+  --color-surface-alt: #efe7f2;
+  --color-border: #e3d9e8;
+
+  --color-primary: #8e6bbb;
+  --color-primary-pressed: #70519a;
+  --color-primary-tint: #efe8f7;
+  --color-gold: #c9a24b;
+
+  --color-content-primary: #2a2530;
+  --color-content-secondary: #6b6270;
+  --color-content-tertiary: #a79fb0;
+
+  --color-success: #5b8c6e;
+  --color-error: #c25b6b;
+  --color-warning: #d89a3e;
+
+  --radius-md: 12px; /* buttons, inputs, small cards */
+  --radius-lg: 16px; /* receipt line-item cards, session cards */
+  --radius-xl: 20px; /* hero / capture card */
+
+  --shadow-soft: 0 8px 24px rgba(42, 37, 48, 0.08);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-content-primary);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 22px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@utility hero-title {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+
+@utility screen-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+}
+
+@utility item-name {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+@utility price-total {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility body-text {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+@utility unit-meta {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility label-nav {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
