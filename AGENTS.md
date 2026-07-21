@@ -5,6 +5,11 @@ model, splitting logic, architecture) lives in
 [`docs/srs.md`](docs/srs.md). Read it before working on the project to
 understand the context and requirements.
 
+## Package Manager
+
+This workspace uses **bun**. Run nx tasks with `bun nx <target>` (e.g. `bun nx build web`,
+`bun nx lint web`) and manage dependencies with `bun add` / `bun install`. Do not use pnpm or npm.
+
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 
