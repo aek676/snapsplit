@@ -44,5 +44,18 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/web/**"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noBarrelFile": "error",
+            "noReExportAll": "error"
+          }
+        }
+      }
+    }
+  ]
 }
