@@ -8,7 +8,7 @@
         "@ai-sdk/google": "^4.0.17",
         "@elysiajs/cors": "^1.4.2",
         "@elysiajs/openapi": "^1.4.15",
-        "@fontsource/hanken-grotesk": "^5.3.0",
+        "@fontsource-variable/hanken-grotesk": "^5.3.0",
         "@fontsource/playfair-display": "^5.3.0",
         "@google-cloud/storage": "^7.21.0",
         "ai": "^7.0.28",
@@ -347,7 +347,7 @@
 
     "@exodus/bytes": ["@exodus/bytes@1.15.1", "", { "peerDependencies": { "@noble/hashes": "^1.8.0 || ^2.0.0" }, "optionalPeers": ["@noble/hashes"] }, "sha512-S6mL0yNB/Abt9Ei4tq8gDhcczc4S3+vQ4ra7vxnAf+YHC02srtqxKKZghx2Dq6p0e66THKwR6r8N6P95wEty7Q=="],
 
-    "@fontsource/hanken-grotesk": ["@fontsource/hanken-grotesk@5.3.0", "", {}, "sha512-eiqAvcMT88tCMCBzn6qKgMHGLJKq3NEXO3+0y9JXqzyty2U6KZnaGtbfiQgzRAXfwFp559hJQ0zBgJ6d89AuTA=="],
+    "@fontsource-variable/hanken-grotesk": ["@fontsource-variable/hanken-grotesk@5.3.0", "", {}, "sha512-DOd0FqL+3cH2dfNy0JtSq9tUfxBz5mLmHMjTU0DOr3E9Zo6wxuatCl53DIPNrSPgCsnuKyM739BTIG5glCLirw=="],
 
     "@fontsource/playfair-display": ["@fontsource/playfair-display@5.3.0", "", {}, "sha512-uJSABalvdWc10fEPppQjQocamT21LEyRfzzWfRfqbkPz+sRv+kKpYDKyluBUskvJREkJTos9epj1WjQROGu99Q=="],
 
