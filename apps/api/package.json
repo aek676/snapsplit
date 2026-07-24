@@ -1,0 +1,12 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/app.ts",
+      "default": "./src/app.ts"
+    }
+  }
+}

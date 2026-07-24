@@ -13,7 +13,8 @@
       "!**/out-tsc",
       "!**/coverage",
       "!**/.nx",
-      "!**/*.timestamp*"
+      "!**/*.timestamp*",
+      "!**/*.gen.ts"
     ]
   },
   "formatter": {
@@ -61,6 +62,67 @@
                 "strictCase": true,
                 "requireAscii": true,
                 "filenameCases": ["kebab-case"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/app/routes/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app", "**/app/**"],
+                    "message": "Unidirectional architecture: src/features must not import from src/app."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/web/src/components/**",
+        "apps/web/src/hooks/**",
+        "apps/web/src/lib/**",
+        "apps/web/src/types/**",
+        "apps/web/src/utils/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/app",
+                      "**/app/**",
+                      "**/features",
+                      "**/features/**"
+                    ],
+                    "message": "Unidirectional architecture: shared modules (components, hooks, lib, types, utils) must not import from src/app or src/features."
+                  }
+                ]
               }
             }
           }
