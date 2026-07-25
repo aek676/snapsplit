@@ -14,20 +14,6 @@
       "dom.iterable"
     ],
     "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "paths": {
-      "shadcn-ui": [
-        "./libs/shadcn-ui/src"
-      ],
-      "shadcn-ui-utils": [
-        "./libs/shadcn-ui-utils/src"
-      ],
-      "shadcn-ui/*": [
-        "./libs/shadcn-ui/src/*"
-      ],
-      "shadcn-ui-utils/*": [
-        "./libs/shadcn-ui-utils/src/*"
-      ]
-    }
+    "skipDefaultLibCheck": true
   }
 }

@@ -12,12 +12,6 @@
     },
     {
       "path": "./libs/split-logic"
-    },
-    {
-      "path": "./libs/shadcn-ui-utils"
-    },
-    {
-      "path": "./libs/shadcn-ui"
     }
   ]
 }
