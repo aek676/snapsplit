@@ -20,5 +20,12 @@
     "src/**/*.test.jsx"
   ],
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
-  "references": []
+  "references": [
+    {
+      "path": "../../libs/shadcn-ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../api"
+    }
+  ]
 }

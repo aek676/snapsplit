@@ -4,7 +4,14 @@
     "allowJs": false,
     "allowSyntheticDefaultImports": true,
     "strict": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "shadcn-ui": ["../../libs/shadcn-ui/src"],
+      "shadcn-ui-utils": ["../../libs/shadcn-ui-utils/src"],
+      "shadcn-ui/*": ["../../libs/shadcn-ui/src/*"],
+      "shadcn-ui-utils/*": ["../../libs/shadcn-ui-utils/src/*"]
+    }
   },
   "files": [],
   "include": [],
