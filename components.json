@@ -3,7 +3,7 @@
   "style": "base-nova",
   "rsc": false,
   "tailwind": {
-    "config": "libs/shadcn-ui-utils/src/tailwind.config.ts",
+    "config": "",
     "css": "libs/shadcn-ui-utils/src/global.css",
     "baseColor": "neutral",
     "cssVariables": true
