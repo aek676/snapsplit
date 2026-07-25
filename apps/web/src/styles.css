@@ -32,9 +32,25 @@
   --radius-xl: 20px; /* hero / capture card */
 
   --shadow-soft: 0 8px 24px rgba(42, 37, 48, 0.08);
+
+  --color-foreground: #2a2530;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #efe7f2;
+  --color-secondary-foreground: #2a2530;
+  --color-muted: #efe7f2;
+  --color-muted-foreground: #6b6270;
+  --color-destructive: #c25b6b;
+  --color-destructive-foreground: #ffffff;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #2a2530;
+  --color-ring: #8e6bbb;
+  --color-input: #e3d9e8;
 }
 
 @layer base {
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-content-primary);
