@@ -14,7 +14,9 @@
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/tsconfig.spec.json",
       "!{projectRoot}/**/vite.config.{js,ts,mjs,mts}",
-      "!{projectRoot}/**/vitest.config.{js,ts,mjs,mts}"
+      "!{projectRoot}/**/vitest.config.{js,ts,mjs,mts}",
+      "!{projectRoot}/.eslintrc.json",
+      "!{projectRoot}/eslint.config.mjs"
     ],
     "sharedGlobals": [
       "{workspaceRoot}/tsconfig.base.json",
@@ -52,6 +54,17 @@
       "inputs": [
         "default",
         "{workspaceRoot}/biome.json"
+      ]
+    },
+    "@nx/eslint:lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/.eslintrc.json",
+        "{workspaceRoot}/.eslintignore",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/**/*"
       ]
     }
   },
