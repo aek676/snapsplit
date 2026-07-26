@@ -1,5 +1,15 @@
 import { Elysia, status, t } from 'elysia';
-import { gcsReceiptStorage } from '../../storage/gcs';
+import {
+  gcsReceiptStorage,
+  SUPPORTED_IMAGE_MIME_TYPES,
+} from '../../storage/gcs';
+
+const receiptImageContent = Object.fromEntries(
+  SUPPORTED_IMAGE_MIME_TYPES.map((type) => [
+    type,
+    { schema: { type: 'string' as const, format: 'binary' as const } },
+  ]),
+);
 
 export const receiptModule = new Elysia({
   prefix: '/receipts',
@@ -22,12 +32,7 @@ export const receiptModule = new Elysia({
       responses: {
         200: {
           description: 'The stored receipt image bytes',
-          content: {
-            'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-            'image/png': { schema: { type: 'string', format: 'binary' } },
-            'image/webp': { schema: { type: 'string', format: 'binary' } },
-            'image/gif': { schema: { type: 'string', format: 'binary' } },
-          },
+          content: receiptImageContent,
         },
         404: {
           description: 'No receipt image exists for the given fileId',
