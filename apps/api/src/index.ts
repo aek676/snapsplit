@@ -8,7 +8,3 @@ app.listen(3000);
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );
-
-export type { App } from './app';
-export type { SupportedImageMimeType } from './storage/gcs';
-export { SUPPORTED_IMAGE_MIME_TYPES } from './storage/gcs';
