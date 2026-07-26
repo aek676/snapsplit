@@ -1,6 +1,5 @@
 import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
-import { Toaster } from 'shadcn-ui/toast';
 import App from './app/app';
 
 const root = ReactDOM.createRoot(
@@ -10,6 +9,5 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <App />
-    <Toaster />
   </StrictMode>,
 );
