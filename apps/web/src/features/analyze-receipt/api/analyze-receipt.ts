@@ -1,4 +1,4 @@
-import { SUPPORTED_IMAGE_MIME_TYPES } from '@repo/api';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@repo/api/constants';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { getSessionQueryOptions } from '@/features/receipt-review/api/get-session';

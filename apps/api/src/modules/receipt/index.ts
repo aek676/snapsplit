@@ -1,8 +1,6 @@
 import { Elysia, status, t } from 'elysia';
-import {
-  gcsReceiptStorage,
-  SUPPORTED_IMAGE_MIME_TYPES,
-} from '../../storage/gcs';
+import { gcsReceiptStorage } from '../../storage/gcs';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/receipt-storage';
 
 const receiptImageContent = Object.fromEntries(
   SUPPORTED_IMAGE_MIME_TYPES.map((type) => [
