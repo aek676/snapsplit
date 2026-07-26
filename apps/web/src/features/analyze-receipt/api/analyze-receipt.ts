@@ -1,13 +1,21 @@
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@repo/api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-
 import { getSessionQueryOptions } from '@/features/receipt-review/api/get-session';
 import { api, apiError } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
 import type { Session as AnalyzeReceipt } from '@/types/session';
 
 export const analyzeReceiptSchema = z.object({
-  image: z.file().mime('image/*').max(10_000_000).min(1, 'Required'),
+  image: z
+    .file()
+    .refine(
+      (file) =>
+        (SUPPORTED_IMAGE_MIME_TYPES as readonly string[]).includes(file.type),
+      'Only JPEG, PNG, WebP, and GIF images are supported',
+    )
+    .max(10_000_000)
+    .min(1, 'Required'),
 });
 
 export type analyzeReceiptInput = z.infer<typeof analyzeReceiptSchema>;

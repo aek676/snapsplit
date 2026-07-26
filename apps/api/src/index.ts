@@ -10,3 +10,5 @@ console.log(
 );
 
 export type { App } from './app';
+export type { SupportedImageMimeType } from './storage/gcs';
+export { SUPPORTED_IMAGE_MIME_TYPES } from './storage/gcs';

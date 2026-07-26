@@ -27,3 +27,5 @@ export const app = new Elysia()
   .get('/', () => ({ hello: 'snapsplit' }));
 
 export type App = typeof app;
+export { SUPPORTED_IMAGE_MIME_TYPES } from './storage/gcs';
+export type { SupportedImageMimeType } from './storage/gcs';
