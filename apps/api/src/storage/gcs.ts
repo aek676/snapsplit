@@ -4,15 +4,21 @@ import type { ReceiptStorage } from './receipt-storage';
 
 const PREFIX = 'receipts';
 
-const EXT_BY_MEDIA_TYPE: Record<string, string> = {
+export const EXT_BY_MEDIA_TYPE = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
   'image/gif': 'gif',
-};
+} as const;
 
-function extFromMediaType(mediaType: string): string {
-  return EXT_BY_MEDIA_TYPE[mediaType] ?? 'bin';
+export type SupportedImageMimeType = keyof typeof EXT_BY_MEDIA_TYPE;
+
+export const SUPPORTED_IMAGE_MIME_TYPES = Object.keys(
+  EXT_BY_MEDIA_TYPE,
+) as SupportedImageMimeType[];
+
+export function extFromMediaType(mediaType: string): string {
+  return EXT_BY_MEDIA_TYPE[mediaType as SupportedImageMimeType] ?? 'bin';
 }
 
 export class GcsReceiptStorage implements ReceiptStorage {
