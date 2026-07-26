@@ -30,10 +30,7 @@ type UseSessionOptions = {
   queryConfig?: QueryConfig<typeof getSessionQueryOptions>;
 };
 
-export const useSession = ({
-  sessionId,
-  queryConfig,
-}: UseSessionOptions) => {
+export const useSession = ({ sessionId, queryConfig }: UseSessionOptions) => {
   return useQuery({
     ...getSessionQueryOptions(sessionId),
     ...queryConfig,
