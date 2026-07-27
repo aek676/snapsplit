@@ -13,7 +13,7 @@ export const updateLineItemDraftInputSchema = z.object({
   unitPriceCents: z.int().min(0, 'Must be at least 0'),
 });
 
-export type UpdateLineItemDraftInputSchema = z.infer<
+export type UpdateLineItemDraftInput = z.infer<
   typeof updateLineItemDraftInputSchema
 >;
 
@@ -24,7 +24,7 @@ export const updateLineItem = async ({
 }: {
   sessionId: string;
   lineItemId: string;
-  data: UpdateLineItemDraftInputSchema;
+  data: UpdateLineItemDraftInput;
 }): Promise<Session> => {
   return api
     .sessions({ sessionId })
