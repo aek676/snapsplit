@@ -8,26 +8,14 @@
     "moduleResolution": "bundler",
     "importHelpers": true,
     "target": "es2022",
-    "lib": [
-      "es2022",
-      "dom",
-      "dom.iterable"
-    ],
+    "lib": ["es2022", "dom", "dom.iterable"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "paths": {
-      "shadcn-ui": [
-        "./libs/shadcn-ui/src"
-      ],
-      "shadcn-ui-utils": [
-        "./libs/shadcn-ui-utils/src"
-      ],
-      "shadcn-ui/*": [
-        "./libs/shadcn-ui/src/*"
-      ],
-      "shadcn-ui-utils/*": [
-        "./libs/shadcn-ui-utils/src/*"
-      ]
+      "shadcn-ui": ["./libs/shadcn-ui/src"],
+      "shadcn-ui-utils": ["./libs/shadcn-ui-utils/src"],
+      "shadcn-ui/*": ["./libs/shadcn-ui/src/*"],
+      "shadcn-ui-utils/*": ["./libs/shadcn-ui-utils/src/*"]
     }
   }
 }

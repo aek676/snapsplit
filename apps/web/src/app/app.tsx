@@ -1,12 +1,17 @@
-// Uncomment this line to use CSS modules
-// import styles from './app.module.css';
-import NxWelcome from './nx-welcome';
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import { formDevtoolsPlugin } from '@tanstack/react-form-devtools';
+import { RouterProvider } from '@tanstack/react-router';
+import { AppProvider } from './provider';
+import { router } from './router';
 
 export function App() {
   return (
-    <div>
-      <NxWelcome title="web" />
-    </div>
+    <AppProvider>
+      <RouterProvider router={router} />
+      {import.meta.env.MODE === 'development' && (
+        <TanStackDevtools plugins={[formDevtoolsPlugin()]} />
+      )}
+    </AppProvider>
   );
 }
 

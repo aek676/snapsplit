@@ -7,8 +7,8 @@ describe('App', () => {
     expect(baseElement).toBeTruthy();
   });
 
-  it('should have a greeting as the title', () => {
-    const { getByText } = render(<App />);
-    expect(getByText(/Welcome web/i)).toBeTruthy();
+  it('should have a greeting as the title', async () => {
+    const { findByText } = render(<App />);
+    expect(await findByText(/Split the bill, snap it/i)).toBeTruthy();
   });
 });

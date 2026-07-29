@@ -1,4 +1,5 @@
 import { t } from 'elysia';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/receipt-storage';
 
 const lineItemView = t.Object({
   id: t.String(),
@@ -28,7 +29,7 @@ const lineItemCreateBody = t.Object({
 
 export const SessionModel = {
   analyzeBody: t.Object({
-    image: t.File({ type: 'image', maxSize: '10m' }),
+    image: t.File({ type: [...SUPPORTED_IMAGE_MIME_TYPES], maxSize: '10m' }),
   }),
   sessionParams: t.Object({ sessionId: t.String() }),
   lineItemParams: t.Object({ sessionId: t.String(), lineItemId: t.String() }),

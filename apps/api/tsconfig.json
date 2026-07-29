@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "../../dist/out-tsc",
+    "outDir": "../../dist/out-tsc/api",
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "esnext",
@@ -12,5 +12,6 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["bun-types"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": []
 }

@@ -1,18 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { type Bucket, Storage } from '@google-cloud/storage';
-import type { ReceiptStorage } from './receipt-storage';
+import {
+  EXT_BY_MEDIA_TYPE,
+  type ReceiptStorage,
+  type SupportedImageMimeType,
+} from './receipt-storage';
 
 const PREFIX = 'receipts';
 
-const EXT_BY_MEDIA_TYPE: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-};
-
-function extFromMediaType(mediaType: string): string {
-  return EXT_BY_MEDIA_TYPE[mediaType] ?? 'bin';
+export function extFromMediaType(mediaType: string): string {
+  return EXT_BY_MEDIA_TYPE[mediaType as SupportedImageMimeType] ?? 'bin';
 }
 
 export class GcsReceiptStorage implements ReceiptStorage {
