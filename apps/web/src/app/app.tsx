@@ -8,7 +8,7 @@ export function App() {
   return (
     <AppProvider>
       <RouterProvider router={router} />
-      {import.meta.env.DEV && (
+      {import.meta.env.MODE === 'development' && (
         <TanStackDevtools plugins={[formDevtoolsPlugin()]} />
       )}
     </AppProvider>
