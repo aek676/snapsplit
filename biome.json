@@ -99,6 +99,35 @@
       }
     },
     {
+      "includes": ["apps/web/src/features/session/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app", "**/app/**"],
+                    "message": "Unidirectional architecture: src/features must not import from src/app."
+                  },
+                  {
+                    "group": [
+                      "**/features",
+                      "**/features/**",
+                      "!**/features/session",
+                      "!**/features/session/**"
+                    ],
+                    "message": "No cross-feature imports: compose features in src/app (bulletproof)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "apps/web/src/components/**",
         "apps/web/src/hooks/**",
