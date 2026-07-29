@@ -9,7 +9,7 @@ function RootLayout() {
   return (
     <>
       <Outlet />
-      <TanStackRouterDevtools />
+      {import.meta.env.DEV && <TanStackRouterDevtools />}
     </>
   );
 }
