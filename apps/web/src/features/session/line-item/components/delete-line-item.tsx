@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from 'shadcn-ui/alert-dialog';
-
+import { Button } from 'shadcn-ui/button';
 import { useDeleteLineItem } from '@/features/session/line-item/api/delete-line-item';
 import type { LineItem } from '@/types/session';
 
@@ -27,9 +27,14 @@ export function DeleteLineItem({ sessionId, lineItem }: DeleteLineItemProps) {
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger aria-label={`Delete ${lineItem.name}`}>
-        <Trash2 size={20} />
-      </AlertDialogTrigger>
+      <AlertDialogTrigger
+        aria-label={`Delete ${lineItem.name}`}
+        render={
+          <Button variant="destructive" size="icon-lg">
+            <Trash2 />
+          </Button>
+        }
+      ></AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete item?</AlertDialogTitle>

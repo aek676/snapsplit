@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { AnalyzeReceipt } from '@/features/analyze-receipt/components/analyze-receipt';
+import { ReceiptCapture } from '@/features/session/components/receipt-capture';
 
 export const Route = createFileRoute('/')({
   component: HomePage,
 });
 
 function HomePage() {
-  return <AnalyzeReceipt />;
+  return <ReceiptCapture />;
 }

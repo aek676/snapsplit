@@ -1,4 +1,5 @@
 import { Pencil } from 'lucide-react';
+import { Button } from 'shadcn-ui/button';
 import { DeleteLineItem } from '@/features/session/line-item/components/delete-line-item';
 import type { LineItem } from '@/types/session';
 import { formatCents } from '@/utils/money';
@@ -40,14 +41,14 @@ export function LineItemRow({
       <span className="w-20 text-right price-total">
         {formatCents(lineItem.lineTotalCents, currency)}
       </span>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-lg"
         aria-label={`Edit ${lineItem.name}`}
         onClick={onEdit}
-        className="flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-tint/50"
       >
-        <Pencil size={20} />
-      </button>
+        <Pencil />
+      </Button>
       <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
     </li>
   );
