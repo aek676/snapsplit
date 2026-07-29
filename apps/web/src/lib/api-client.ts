@@ -9,8 +9,11 @@ export const api: Treaty.Create<App> = treaty<App>(env.apiUrl, {
       let message = response.statusText;
 
       try {
-        const errorData = await response.clone().json();
-        message = errorData.message || errorData.value?.message || message;
+        const body = await response.clone().json();
+        message =
+          typeof body === 'string'
+            ? body
+            : (body?.message ?? body?.value?.message ?? message);
       } catch {}
 
       toast.add({
@@ -23,9 +26,5 @@ export const api: Treaty.Create<App> = treaty<App>(env.apiUrl, {
 });
 
 export function apiError(error: unknown, message: string): Error {
-  const err = new Error(message);
-  if (error instanceof Error) {
-    err.cause = error;
-  }
-  return err;
+  return new Error(message, { cause: error });
 }

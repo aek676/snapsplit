@@ -46,8 +46,7 @@ export function ReceiptCapture() {
     analyze.mutate(result.data);
   };
 
-  const errorMessage =
-    validationError ?? (analyze.isError ? analyze.error.message : null);
+  const errorMessage = validationError;
 
   if (analyze.isPending && previewUrl) {
     return <AnalyzingView imageUrl={previewUrl} />;

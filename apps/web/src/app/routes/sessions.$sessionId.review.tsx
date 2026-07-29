@@ -27,7 +27,7 @@ function ReviewPage() {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-160 flex-col items-center justify-center gap-4 px-5 text-center">
         <Alert variant="destructive">
-          <AlertDescription>{sessionQuery.error.message}</AlertDescription>
+          <AlertDescription>Couldn't load this session</AlertDescription>
         </Alert>
         <Button variant="secondary" onClick={() => sessionQuery.refetch()}>
           Try again
