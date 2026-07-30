@@ -19,6 +19,7 @@ const toTitleCase = (name: string): string =>
 export const receiptSchema = z.object({
   merchant: z
     .string()
+    .transform(toTitleCase)
     .nullable()
     .describe('Merchant/business name, or null if illegible'),
   date: z.iso

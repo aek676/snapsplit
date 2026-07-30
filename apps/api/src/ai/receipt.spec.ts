@@ -230,6 +230,22 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
     expect(result.merchant).toBeNull();
   });
 
+  it('normalizes the merchant name to title case', async () => {
+    withOutputs({ ...consistent, merchant: '  BAR   pACO  ' });
+
+    const result = await extract();
+
+    expect(result.merchant).toBe('Bar Paco');
+  });
+
+  it('leaves a null merchant untouched by normalization', async () => {
+    withOutputs({ ...consistent, merchant: null });
+
+    const result = await extract();
+
+    expect(result.merchant).toBeNull();
+  });
+
   it('coerces an unparseable date to null via .catch(null)', async () => {
     withOutputs({ ...consistent, date: 'ayer' });
 
