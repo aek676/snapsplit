@@ -46,9 +46,8 @@ let model: MockLanguageModelV4;
 const google = mock(() => model);
 mock.module('@ai-sdk/google', () => ({ google }));
 
-const { extractReceipt, isReceiptConsistent, receiptScore } = await import(
-  './receipt'
-);
+const { extractReceipt, isReceiptConsistent, receiptScore, receiptSchema } =
+  await import('./receipt');
 
 const withOutputs = (...raws: unknown[]) => {
   model = new MockLanguageModelV4({
@@ -245,5 +244,75 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
     const result = await extract();
 
     expect(result.date).toBeNull();
+  });
+});
+
+describe('line item name normalization', () => {
+  const rawLine = (name: string) => ({
+    name,
+    quantity: 1,
+    unitPriceCents: 100,
+    lineTotalCents: 100,
+    aiConfidence: 1,
+  });
+  const normalizeName = (name: string) =>
+    receiptSchema.shape.lineItems.element.parse(rawLine(name)).name;
+
+  it('title-cases an all-caps name', () => {
+    expect(normalizeName('COCA COLA')).toBe('Coca Cola');
+  });
+
+  it('title-cases a lowercase name', () => {
+    expect(normalizeName('cerveza jarra')).toBe('Cerveza Jarra');
+  });
+
+  it('normalizes a randomly-cased name', () => {
+    expect(normalizeName('cErVeZa DoBLe')).toBe('Cerveza Doble');
+  });
+
+  it('leaves an already title-cased name unchanged', () => {
+    expect(normalizeName('Patatas Bravas')).toBe('Patatas Bravas');
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(normalizeName('  caña  ')).toBe('Caña');
+  });
+
+  it('collapses internal whitespace', () => {
+    expect(normalizeName('patatas   bravas')).toBe('Patatas Bravas');
+  });
+
+  it('preserves accents and ñ', () => {
+    expect(normalizeName('PIÑA colada')).toBe('Piña Colada');
+    expect(normalizeName('NIÑO')).toBe('Niño');
+  });
+
+  it('capitalizes on both sides of a hyphen', () => {
+    expect(normalizeName('COCA-COLA')).toBe('Coca-Cola');
+  });
+
+  it('keeps leading numbers and capitalizes the following word', () => {
+    expect(normalizeName('2 CAÑAS')).toBe('2 Cañas');
+  });
+
+  it('keeps an empty name empty', () => {
+    expect(normalizeName('')).toBe('');
+  });
+
+  it('normalizes names end-to-end through extractReceipt', async () => {
+    withOutputs({
+      ...consistent,
+      lineItems: [
+        { ...consistent.lineItems[0], name: 'COCA   COLA' },
+        { ...consistent.lineItems[1], name: 'patatas bravas' },
+      ],
+    });
+
+    const result = await extract();
+
+    expect(result.lineItems.map((item) => item.name)).toEqual([
+      'Coca Cola',
+      'Patatas Bravas',
+    ]);
   });
 });

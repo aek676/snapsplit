@@ -6,6 +6,16 @@ const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 const MAX_ATTEMPTS = Number(Bun.env.RECEIPT_EXTRACTION_MAX_ATTEMPTS ?? 3);
 const SUM_TOLERANCE_CENTS = 0;
 
+const toTitleCase = (name: string): string =>
+  name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(
+      /\p{L}[\p{L}\p{M}]*/gu,
+      (word) => word[0].toUpperCase() + word.slice(1),
+    );
+
 export const receiptSchema = z.object({
   merchant: z
     .string()
@@ -27,7 +37,10 @@ export const receiptSchema = z.object({
   lineItems: z
     .array(
       z.object({
-        name: z.string().describe('Item name as printed on the receipt'),
+        name: z
+          .string()
+          .transform(toTitleCase)
+          .describe('Item name as printed on the receipt'),
         quantity: z
           .number()
           .int()
