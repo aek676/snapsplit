@@ -6,15 +6,14 @@ const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 const MAX_ATTEMPTS = Number(Bun.env.RECEIPT_EXTRACTION_MAX_ATTEMPTS ?? 3);
 const SUM_TOLERANCE_CENTS = 0;
 
+const wordSegmenter = new Intl.Segmenter('es', { granularity: 'word' });
+
 const toTitleCase = (name: string): string =>
-  name
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLowerCase()
-    .replace(
-      /(?<![\p{L}\p{M}'’])\p{L}[\p{L}\p{M}]*/gu,
-      (word) => word[0].toUpperCase() + word.slice(1),
-    );
+  [...wordSegmenter.segment(name.trim().replace(/\s+/g, ' ').toLowerCase())]
+    .map(({ segment, isWordLike }) =>
+      isWordLike ? segment[0].toUpperCase() + segment.slice(1) : segment,
+    )
+    .join('');
 
 const toCurrencyCode = (code: string): string => {
   const trimmed = code.trim();
