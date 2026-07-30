@@ -6,9 +6,24 @@ const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 const MAX_ATTEMPTS = Number(Bun.env.RECEIPT_EXTRACTION_MAX_ATTEMPTS ?? 3);
 const SUM_TOLERANCE_CENTS = 0;
 
+const wordSegmenter = new Intl.Segmenter('es', { granularity: 'word' });
+
+const toTitleCase = (name: string): string =>
+  [...wordSegmenter.segment(name.trim().replace(/\s+/g, ' ').toLowerCase())]
+    .map(({ segment, isWordLike }) =>
+      isWordLike ? segment[0].toUpperCase() + segment.slice(1) : segment,
+    )
+    .join('');
+
+const toCurrencyCode = (code: string): string => {
+  const trimmed = code.trim();
+  return /^[A-Za-z]{3}$/.test(trimmed) ? trimmed.toUpperCase() : 'EUR';
+};
+
 export const receiptSchema = z.object({
   merchant: z
     .string()
+    .transform(toTitleCase)
     .nullable()
     .describe('Merchant/business name, or null if illegible'),
   date: z.iso
@@ -18,6 +33,7 @@ export const receiptSchema = z.object({
     .describe('Receipt date as ISO 8601 (YYYY-MM-DD), or null if not present'),
   currency: z
     .string()
+    .transform(toCurrencyCode)
     .describe('ISO 4217 currency code, e.g. EUR. Default to EUR if unknown'),
   totalCents: z
     .number()
@@ -27,7 +43,10 @@ export const receiptSchema = z.object({
   lineItems: z
     .array(
       z.object({
-        name: z.string().describe('Item name as printed on the receipt'),
+        name: z
+          .string()
+          .transform(toTitleCase)
+          .describe('Item name as printed on the receipt'),
         quantity: z
           .number()
           .int()

@@ -46,9 +46,8 @@ let model: MockLanguageModelV4;
 const google = mock(() => model);
 mock.module('@ai-sdk/google', () => ({ google }));
 
-const { extractReceipt, isReceiptConsistent, receiptScore } = await import(
-  './receipt'
-);
+const { extractReceipt, isReceiptConsistent, receiptScore, receiptSchema } =
+  await import('./receipt');
 
 const withOutputs = (...raws: unknown[]) => {
   model = new MockLanguageModelV4({
@@ -231,6 +230,34 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
     expect(result.merchant).toBeNull();
   });
 
+  it('normalizes the merchant name to title case', async () => {
+    withOutputs({ ...consistent, merchant: '  BAR   pACO  ' });
+
+    const result = await extract();
+
+    expect(result.merchant).toBe('Bar Paco');
+  });
+
+  it('leaves a null merchant untouched by normalization', async () => {
+    withOutputs({ ...consistent, merchant: null });
+
+    const result = await extract();
+
+    expect(result.merchant).toBeNull();
+  });
+
+  it('normalizes line-item names to title case', async () => {
+    withOutputs({
+      ...consistent,
+      lineItems: [lineItem({ name: 'caña   GRANDE' })],
+      totalCents: 600,
+    });
+
+    const result = await extract();
+
+    expect(result.lineItems[0].name).toBe('Caña Grande');
+  });
+
   it('coerces an unparseable date to null via .catch(null)', async () => {
     withOutputs({ ...consistent, date: 'ayer' });
 
@@ -245,5 +272,164 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
     const result = await extract();
 
     expect(result.date).toBeNull();
+  });
+
+  it('keeps a valid ISO 8601 date', async () => {
+    withOutputs({ ...consistent, date: '2026-07-07' });
+
+    const result = await extract();
+
+    expect(result.date).toBe('2026-07-07');
+  });
+
+  it('coerces a non-ISO date format to null', async () => {
+    withOutputs({ ...consistent, date: '07/07/2026' });
+
+    const result = await extract();
+
+    expect(result.date).toBeNull();
+  });
+
+  it('coerces a date-time string to null (date only is allowed)', async () => {
+    withOutputs({ ...consistent, date: '2026-07-07T10:00:00Z' });
+
+    const result = await extract();
+
+    expect(result.date).toBeNull();
+  });
+
+  it('coerces an impossible calendar date to null', async () => {
+    withOutputs({ ...consistent, date: '2026-13-40' });
+
+    const result = await extract();
+
+    expect(result.date).toBeNull();
+  });
+
+  it('falls back to EUR when the currency has too many chars', async () => {
+    withOutputs({ ...consistent, currency: 'EUROS' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('EUR');
+  });
+
+  it('falls back to EUR when the currency is too short', async () => {
+    withOutputs({ ...consistent, currency: 'EU' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('EUR');
+  });
+
+  it('keeps a valid 3-letter currency code', async () => {
+    withOutputs({ ...consistent, currency: 'USD' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('USD');
+  });
+
+  it('falls back to EUR for a non-alphabetic 3-char currency', async () => {
+    withOutputs({ ...consistent, currency: '$$$' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('EUR');
+  });
+
+  it('uppercases a lowercase currency code', async () => {
+    withOutputs({ ...consistent, currency: 'usd' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('USD');
+  });
+});
+
+describe('line item name normalization', () => {
+  const rawLine = (name: string) => ({
+    name,
+    quantity: 1,
+    unitPriceCents: 100,
+    lineTotalCents: 100,
+    aiConfidence: 1,
+  });
+  const normalizeName = (name: string) =>
+    receiptSchema.shape.lineItems.element.parse(rawLine(name)).name;
+
+  it('title-cases an all-caps name', () => {
+    expect(normalizeName('COCA COLA')).toBe('Coca Cola');
+  });
+
+  it('title-cases a lowercase name', () => {
+    expect(normalizeName('cerveza jarra')).toBe('Cerveza Jarra');
+  });
+
+  it('normalizes a randomly-cased name', () => {
+    expect(normalizeName('cErVeZa DoBLe')).toBe('Cerveza Doble');
+  });
+
+  it('leaves an already title-cased name unchanged', () => {
+    expect(normalizeName('Patatas Bravas')).toBe('Patatas Bravas');
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(normalizeName('  caña  ')).toBe('Caña');
+  });
+
+  it('collapses internal whitespace', () => {
+    expect(normalizeName('patatas   bravas')).toBe('Patatas Bravas');
+  });
+
+  it('preserves accents and ñ', () => {
+    expect(normalizeName('PIÑA colada')).toBe('Piña Colada');
+    expect(normalizeName('NIÑO')).toBe('Niño');
+  });
+
+  it('capitalizes on both sides of a hyphen', () => {
+    expect(normalizeName('COCA-COLA')).toBe('Coca-Cola');
+  });
+
+  it('keeps leading numbers and capitalizes the following word', () => {
+    expect(normalizeName('2 CAÑAS')).toBe('2 Cañas');
+  });
+
+  it('keeps the possessive s lowercase after an apostrophe', () => {
+    expect(normalizeName("PACO'S BAR")).toBe("Paco's Bar");
+  });
+
+  it('does not capitalize the letter after an apostrophe', () => {
+    expect(normalizeName("McDonald's")).toBe("Mcdonald's");
+  });
+
+  it('does not capitalize a multi-letter run after an apostrophe', () => {
+    expect(normalizeName("L'OREAL")).toBe("L'oreal");
+    expect(normalizeName("BAR L'ANTIC")).toBe("Bar L'antic");
+  });
+
+  it('handles multiple apostrophes across words', () => {
+    expect(normalizeName("O'BRIEN'S PUB")).toBe("O'brien's Pub");
+  });
+
+  it('keeps an empty name empty', () => {
+    expect(normalizeName('')).toBe('');
+  });
+
+  it('normalizes names end-to-end through extractReceipt', async () => {
+    withOutputs({
+      ...consistent,
+      lineItems: [
+        { ...consistent.lineItems[0], name: 'COCA   COLA' },
+        { ...consistent.lineItems[1], name: 'patatas bravas' },
+      ],
+    });
+
+    const result = await extract();
+
+    expect(result.lineItems.map((item) => item.name)).toEqual([
+      'Coca Cola',
+      'Patatas Bravas',
+    ]);
   });
 });
