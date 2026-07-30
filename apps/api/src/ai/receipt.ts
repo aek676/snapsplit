@@ -12,7 +12,7 @@ const toTitleCase = (name: string): string =>
     .replace(/\s+/g, ' ')
     .toLowerCase()
     .replace(
-      /(?<!['’])\p{L}[\p{L}\p{M}]*/gu,
+      /\p{L}[\p{L}\p{M}'’]*/gu,
       (word) => word[0].toUpperCase() + word.slice(1),
     );
 

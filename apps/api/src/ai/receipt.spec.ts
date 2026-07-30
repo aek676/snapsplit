@@ -403,6 +403,15 @@ describe('line item name normalization', () => {
     expect(normalizeName("McDonald's")).toBe("Mcdonald's");
   });
 
+  it('does not capitalize a multi-letter run after an apostrophe', () => {
+    expect(normalizeName("L'OREAL")).toBe("L'oreal");
+    expect(normalizeName("BAR L'ANTIC")).toBe("Bar L'antic");
+  });
+
+  it('handles multiple apostrophes across words', () => {
+    expect(normalizeName("O'BRIEN'S PUB")).toBe("O'brien's Pub");
+  });
+
   it('keeps an empty name empty', () => {
     expect(normalizeName('')).toBe('');
   });
