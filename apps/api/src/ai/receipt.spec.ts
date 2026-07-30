@@ -246,6 +246,18 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
     expect(result.merchant).toBeNull();
   });
 
+  it('normalizes line-item names to title case', async () => {
+    withOutputs({
+      ...consistent,
+      lineItems: [lineItem({ name: 'caña   GRANDE' })],
+      totalCents: 600,
+    });
+
+    const result = await extract();
+
+    expect(result.lineItems[0].name).toBe('Caña Grande');
+  });
+
   it('coerces an unparseable date to null via .catch(null)', async () => {
     withOutputs({ ...consistent, date: 'ayer' });
 
