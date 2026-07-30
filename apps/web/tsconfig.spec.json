@@ -18,7 +18,7 @@
     "src/**/*.test.tsx",
     "src/**/*.spec.tsx",
     "src/**/*.d.ts",
-    "src/test-setup.ts"
+    "src/testing/test-setup.ts"
   ],
   "references": [
     {

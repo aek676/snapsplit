@@ -153,6 +153,13 @@ export class SessionService {
       session.totalCents += lineItem.lineTotalCents - previousLineTotalCents;
     }
 
+    if (
+      patch.name !== undefined ||
+      patch.quantity !== undefined ||
+      patch.unitPriceCents !== undefined
+    )
+      lineItem.aiConfidence = 1;
+
     await session.save();
     return toSessionView(session);
   }

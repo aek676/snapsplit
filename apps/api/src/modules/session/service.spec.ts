@@ -317,8 +317,56 @@ describe('SessionService.updateLineItem', () => {
       quantity: 5,
       unitPriceCents: 200,
       lineTotalCents: 1000,
+      aiConfidence: 1,
     });
     expect(result.totalCents).toBe(4630);
+  });
+
+  it('clears the low-confidence flag when the name is corrected', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[1]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().updateLineItem('sid', id, {
+      name: 'Tapa de jamón',
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[1]).toMatchObject({
+      name: 'Tapa de jamón',
+      aiConfidence: 1,
+    });
+  });
+
+  it('clears the low-confidence flag on a quantity edit too', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[1]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().updateLineItem('sid', id, {
+      quantity: 2,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[1]).toMatchObject({
+      quantity: 2,
+      lineTotalCents: 700,
+      aiConfidence: 1,
+    });
+    expect(result.totalCents).toBe(4580);
+  });
+
+  it('leaves confidence untouched for an empty patch', async () => {
+    const session = draftSession();
+    const id = String(session.lineItems[1]._id);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+
+    const result = (await lineItemService().updateLineItem(
+      'sid',
+      id,
+      {},
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[1]).toMatchObject({ aiConfidence: 0.4 });
+    expect(result.totalCents).toBe(4230);
   });
 
   it('leaves the total untouched when only the name changes', async () => {
