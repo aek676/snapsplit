@@ -152,6 +152,13 @@ export class SessionService {
       lineItem.lineTotalCents = lineItem.quantity * lineItem.unitPriceCents;
       session.totalCents += lineItem.lineTotalCents - previousLineTotalCents;
     }
+    // An edit means the payer vouched for the line; an empty patch confirms nothing.
+    if (
+      patch.name !== undefined ||
+      patch.quantity !== undefined ||
+      patch.unitPriceCents !== undefined
+    )
+      lineItem.aiConfidence = 1;
 
     await session.save();
     return toSessionView(session);
