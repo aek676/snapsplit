@@ -145,13 +145,14 @@ export class SessionService {
 
     if (patch.name !== undefined) lineItem.name = patch.name;
     if (patch.quantity !== undefined) lineItem.quantity = patch.quantity;
-    if (patch.unitPriceCents !== undefined) lineItem.unitPriceCents = patch.unitPriceCents;
+    if (patch.unitPriceCents !== undefined)
+      lineItem.unitPriceCents = patch.unitPriceCents;
     if (patch.quantity !== undefined || patch.unitPriceCents !== undefined) {
       const previousLineTotalCents = lineItem.lineTotalCents;
       lineItem.lineTotalCents = lineItem.quantity * lineItem.unitPriceCents;
       session.totalCents += lineItem.lineTotalCents - previousLineTotalCents;
     }
-    
+
     if (
       patch.name !== undefined ||
       patch.quantity !== undefined ||
