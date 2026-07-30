@@ -12,9 +12,14 @@ const toTitleCase = (name: string): string =>
     .replace(/\s+/g, ' ')
     .toLowerCase()
     .replace(
-      /\p{L}[\p{L}\p{M}]*/gu,
+      /(?<!['’])\p{L}[\p{L}\p{M}]*/gu,
       (word) => word[0].toUpperCase() + word.slice(1),
     );
+
+const toCurrencyCode = (code: string): string => {
+  const trimmed = code.trim();
+  return /^[A-Za-z]{3}$/.test(trimmed) ? trimmed.toUpperCase() : 'EUR';
+};
 
 export const receiptSchema = z.object({
   merchant: z
@@ -29,8 +34,7 @@ export const receiptSchema = z.object({
     .describe('Receipt date as ISO 8601 (YYYY-MM-DD), or null if not present'),
   currency: z
     .string()
-    .length(3)
-    .catch('EUR')
+    .transform(toCurrencyCode)
     .describe('ISO 4217 currency code, e.g. EUR. Default to EUR if unknown'),
   totalCents: z
     .number()

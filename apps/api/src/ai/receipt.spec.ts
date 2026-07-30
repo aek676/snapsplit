@@ -329,6 +329,22 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
 
     expect(result.currency).toBe('USD');
   });
+
+  it('falls back to EUR for a non-alphabetic 3-char currency', async () => {
+    withOutputs({ ...consistent, currency: '$$$' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('EUR');
+  });
+
+  it('uppercases a lowercase currency code', async () => {
+    withOutputs({ ...consistent, currency: 'usd' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('USD');
+  });
 });
 
 describe('line item name normalization', () => {
@@ -377,6 +393,14 @@ describe('line item name normalization', () => {
 
   it('keeps leading numbers and capitalizes the following word', () => {
     expect(normalizeName('2 CAÑAS')).toBe('2 Cañas');
+  });
+
+  it('keeps the possessive s lowercase after an apostrophe', () => {
+    expect(normalizeName("PACO'S BAR")).toBe("Paco's Bar");
+  });
+
+  it('does not capitalize the letter after an apostrophe', () => {
+    expect(normalizeName("McDonald's")).toBe("Mcdonald's");
   });
 
   it('keeps an empty name empty', () => {
