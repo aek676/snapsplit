@@ -28,6 +28,8 @@ export const receiptSchema = z.object({
     .describe('Receipt date as ISO 8601 (YYYY-MM-DD), or null if not present'),
   currency: z
     .string()
+    .length(3)
+    .catch('EUR')
     .describe('ISO 4217 currency code, e.g. EUR. Default to EUR if unknown'),
   totalCents: z
     .number()

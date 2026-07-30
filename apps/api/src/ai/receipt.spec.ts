@@ -245,6 +245,30 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
 
     expect(result.date).toBeNull();
   });
+
+  it('falls back to EUR when the currency has too many chars', async () => {
+    withOutputs({ ...consistent, currency: 'EUROS' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('EUR');
+  });
+
+  it('falls back to EUR when the currency is too short', async () => {
+    withOutputs({ ...consistent, currency: 'EU' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('EUR');
+  });
+
+  it('keeps a valid 3-letter currency code', async () => {
+    withOutputs({ ...consistent, currency: 'USD' });
+
+    const result = await extract();
+
+    expect(result.currency).toBe('USD');
+  });
 });
 
 describe('line item name normalization', () => {
