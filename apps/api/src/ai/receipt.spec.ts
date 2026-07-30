@@ -274,6 +274,38 @@ describe('receiptSchema parsing (real generateText + Output.object)', () => {
     expect(result.date).toBeNull();
   });
 
+  it('keeps a valid ISO 8601 date', async () => {
+    withOutputs({ ...consistent, date: '2026-07-07' });
+
+    const result = await extract();
+
+    expect(result.date).toBe('2026-07-07');
+  });
+
+  it('coerces a non-ISO date format to null', async () => {
+    withOutputs({ ...consistent, date: '07/07/2026' });
+
+    const result = await extract();
+
+    expect(result.date).toBeNull();
+  });
+
+  it('coerces a date-time string to null (date only is allowed)', async () => {
+    withOutputs({ ...consistent, date: '2026-07-07T10:00:00Z' });
+
+    const result = await extract();
+
+    expect(result.date).toBeNull();
+  });
+
+  it('coerces an impossible calendar date to null', async () => {
+    withOutputs({ ...consistent, date: '2026-13-40' });
+
+    const result = await extract();
+
+    expect(result.date).toBeNull();
+  });
+
   it('falls back to EUR when the currency has too many chars', async () => {
     withOutputs({ ...consistent, currency: 'EUROS' });
 
