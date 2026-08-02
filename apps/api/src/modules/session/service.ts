@@ -34,13 +34,15 @@ export function buildDraftPayload(
     totalCents: extracted.totalCents,
     receiptImageUrl,
     participants: [{ deviceTokenHash, isOwner: true }],
-    lineItems: extracted.lineItems.map((item): LineItemInput => ({
-      name: item.name,
-      quantity: item.quantity,
-      unitPriceCents: item.unitPriceCents,
-      lineTotalCents: item.lineTotalCents,
-      aiConfidence: item.aiConfidence,
-    })),
+    lineItems: extracted.lineItems.map(
+      (item): LineItemInput => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
+        lineTotalCents: item.lineTotalCents,
+        aiConfidence: item.aiConfidence,
+      }),
+    ),
   };
 }
 
