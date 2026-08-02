@@ -1,8 +1,9 @@
 import { status } from 'elysia';
 import { type HydratedDocument, Error as MongooseError } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
-import { type LineItem, Session } from '../../schemas';
+import { type LineItem, type Participant, Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
+import { generateToken, hashToken } from '../auth/service';
 import { SessionModel } from './model';
 
 type LineItemInput = Pick<
@@ -10,15 +11,18 @@ type LineItemInput = Pick<
   'name' | 'quantity' | 'unitPriceCents' | 'lineTotalCents' | 'aiConfidence'
 >;
 
+type ParticipantInput = Pick<Participant, 'deviceTokenHash' | 'isOwner'>;
+
 type SessionDraftInput = Pick<
   Session,
   'status' | 'merchant' | 'date' | 'currency' | 'totalCents' | 'receiptImageUrl'
 > & {
-  participants: [];
+  participants: ParticipantInput[];
   lineItems: LineItemInput[];
 };
 
 export function buildDraftPayload(
+  deviceTokenHash: string,
   extracted: ExtractedReceipt,
   receiptImageUrl: string,
 ): SessionDraftInput {
@@ -29,7 +33,7 @@ export function buildDraftPayload(
     currency: extracted.currency,
     totalCents: extracted.totalCents,
     receiptImageUrl,
-    participants: [],
+    participants: [{ deviceTokenHash, isOwner: true }],
     lineItems: extracted.lineItems.map(
       (item): LineItemInput => ({
         name: item.name,
@@ -83,9 +87,19 @@ export class SessionService {
 
     const { id } = await this.storage.save(bytes, image.type);
     try {
-      const payload = buildDraftPayload(extracted, `/receipts/${id}`);
+      const token = generateToken();
+      const deviceTokenHash = hashToken(token);
+      const payload = buildDraftPayload(
+        deviceTokenHash,
+        extracted,
+        `/receipts/${id}`,
+      );
       const session = await new Session(payload).save();
-      return toSessionView(session);
+      const [owner] = session.participants;
+      return {
+        ...toSessionView(session),
+        auth: { participantId: String(owner._id), token },
+      };
     } catch (error) {
       await this.storage.delete(id).catch(() => {});
       console.error('Failed to persist draft session:', error);

@@ -17,7 +17,7 @@ export function createSessionModule(service: SessionService) {
     .post('/analyze', ({ body }) => service.createDraftFromImage(body), {
       body: SessionModel.analyzeBody,
       response: {
-        200: SessionModel.draftSessionResponse,
+        200: SessionModel.draftSessionCreatedResponse,
         500: t.Union([
           SessionModel.draftCreationFailed,
           SessionModel.internalError,

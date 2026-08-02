@@ -7,12 +7,15 @@ import {
   mock,
   spyOn,
 } from 'bun:test';
-import { Error as MongooseError } from 'mongoose';
+import { type HydratedDocument, Error as MongooseError } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
+import { hashToken } from '../auth/service';
 import type { SessionModel } from './model';
 import { buildDraftPayload, SessionService, toSessionView } from './service';
+
+const deviceTokenHash = hashToken('device-token-abc');
 
 const extracted: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -39,7 +42,11 @@ const extracted: ExtractedReceipt = {
 
 describe('buildDraftPayload', () => {
   it('maps an extracted receipt into a draft session payload', () => {
-    const payload = buildDraftPayload(extracted, '/receipts/abc.jpg');
+    const payload = buildDraftPayload(
+      deviceTokenHash,
+      extracted,
+      '/receipts/abc.jpg',
+    );
 
     expect(payload.status).toBe('draft');
     expect(payload.merchant).toBe('Bar Paco');
@@ -54,11 +61,15 @@ describe('buildDraftPayload', () => {
       aiConfidence: 0.94,
     });
 
-    expect(payload.participants).toHaveLength(0);
+    // The draft is seeded with its payer, so it never exists ownerless.
+    expect(payload.participants).toEqual([
+      { deviceTokenHash, isOwner: true },
+    ]);
   });
 
   it('tolerates a null merchant/date', () => {
     const payload = buildDraftPayload(
+      deviceTokenHash,
       { ...extracted, merchant: null, date: null },
       '/receipts/x.png',
     );
@@ -70,7 +81,11 @@ describe('buildDraftPayload', () => {
 
 describe('toSessionView', () => {
   it('serializes a session document to the plain API view', () => {
-    const payload = buildDraftPayload(extracted, '/receipts/abc.jpg');
+    const payload = buildDraftPayload(
+      deviceTokenHash,
+      extracted,
+      '/receipts/abc.jpg',
+    );
     const doc = new Session(payload);
 
     const view = toSessionView(doc);
@@ -92,6 +107,7 @@ describe('toSessionView', () => {
   it('returns null for a missing merchant and date', () => {
     const doc = new Session(
       buildDraftPayload(
+        deviceTokenHash,
         { ...extracted, merchant: null, date: null },
         '/receipts/x.png',
       ),
@@ -129,9 +145,11 @@ describe('SessionService.createDraftFromImage', () => {
   });
 
   it('extracts, stores and persists a draft, returning its view', async () => {
+    let saved: HydratedDocument<Session> | undefined;
     spyOn(Session.prototype, 'save').mockImplementation(async function (
-      this: unknown,
+      this: HydratedDocument<Session>,
     ) {
+      saved = this;
       return this;
     });
     const extract = mock<ExtractReceipt>(async () => extracted);
@@ -160,9 +178,14 @@ describe('SessionService.createDraftFromImage', () => {
       merchant: 'Bar Paco',
       receiptImageUrl: '/receipts/stored-123',
     });
-    expect(
-      (result as SessionModel['draftSessionResponse']).lineItems,
-    ).toHaveLength(2);
+    const created = result as SessionModel['draftSessionCreatedResponse'];
+    expect(created.lineItems).toHaveLength(2);
+
+    const owner = saved?.participants[0];
+    expect(owner?.isOwner).toBe(true);
+    expect(created.auth.participantId).toBe(String(owner?._id));
+    expect(owner?.deviceTokenHash).not.toBe(created.auth.token);
+    expect(owner?.deviceTokenHash).toBe(hashToken(created.auth.token));
   });
 
   it('returns 502 without storing when extraction fails', async () => {
@@ -201,7 +224,9 @@ describe('SessionService.createDraftFromImage', () => {
 });
 
 function draftSession() {
-  return new Session(buildDraftPayload(extracted, '/receipts/abc.jpg'));
+  return new Session(
+    buildDraftPayload(deviceTokenHash, extracted, '/receipts/abc.jpg'),
+  );
 }
 
 function lineItemService() {

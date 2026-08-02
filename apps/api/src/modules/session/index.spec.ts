@@ -10,6 +10,7 @@ import {
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
+import { hashToken } from '../auth/service';
 import { createSessionModule } from './index';
 import { buildDraftPayload, SessionService } from './service';
 
@@ -159,7 +160,13 @@ function jsonRequest(path: string, method: string, body: unknown) {
 }
 
 function draftSession() {
-  return new Session(buildDraftPayload(extracted, '/receipts/abc.jpg'));
+  return new Session(
+    buildDraftPayload(
+      hashToken('device-token-abc'),
+      extracted,
+      '/receipts/abc.jpg',
+    ),
+  );
 }
 
 describe('line item routes', () => {

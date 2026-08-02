@@ -21,6 +21,11 @@ const sessionView = t.Object({
   lineItems: t.Array(lineItemView),
 });
 
+const authView = t.Object({
+  participantId: t.String(),
+  token: t.String(),
+});
+
 const lineItemCreateBody = t.Object({
   name: t.String({ minLength: 1 }),
   quantity: t.Integer({ minimum: 0 }),
@@ -36,6 +41,10 @@ export const SessionModel = {
   lineItemCreateBody,
   lineItemUpdateBody: t.Partial(lineItemCreateBody),
   draftSessionResponse: sessionView,
+  draftSessionCreatedResponse: t.Composite([
+    sessionView,
+    t.Object({ auth: authView }),
+  ]),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
   internalError: t.Literal('Unexpected server error'),
