@@ -10,6 +10,7 @@ import {
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
+import { hashToken } from '../auth/service';
 import { createSessionModule } from './index';
 import { buildDraftPayload, SessionService } from './service';
 
@@ -150,16 +151,46 @@ describe('POST /sessions/analyze', () => {
   });
 });
 
-function jsonRequest(path: string, method: string, body: unknown) {
-  return new Request(`http://localhost${path}`, {
-    method,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
+const OWNER_TOKEN = 'device-token-abc';
+const GUEST_TOKEN = 'guest-token-xyz';
 
 function draftSession() {
-  return new Session(buildDraftPayload(extracted, '/receipts/abc.jpg'));
+  return new Session(
+    buildDraftPayload(hashToken(OWNER_TOKEN), extracted, '/receipts/abc.jpg'),
+  );
+}
+
+function sessionWithGuest() {
+  const session = draftSession();
+  session.participants.push({
+    deviceTokenHash: hashToken(GUEST_TOKEN),
+    isOwner: false,
+  });
+  return session;
+}
+
+function mockLookup(session: unknown) {
+  return spyOn(Session, 'findOne').mockImplementation(
+    (async () => session) as never,
+  );
+}
+
+function request(
+  path: string,
+  { method = 'GET', body, token = OWNER_TOKEN as string | null } = {} as {
+    method?: string;
+    body?: unknown;
+    token?: string | null;
+  },
+) {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (token) headers.authorization = `Bearer ${token}`;
+  return new Request(`http://localhost${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
 describe('line item routes', () => {
@@ -176,15 +207,17 @@ describe('line item routes', () => {
     mock.restore();
   });
 
+  const newLine = { name: 'Vino', quantity: 2, unitPriceCents: 300 };
+
   it('POST adds a line item and returns 200 with the updated view', async () => {
-    spyOn(Session, 'findById').mockResolvedValue(draftSession());
+    const session = draftSession();
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      jsonRequest('/sessions/sid/line-items', 'POST', {
-        name: 'Vino',
-        quantity: 2,
-        unitPriceCents: 300,
+      request(`/sessions/${session._id}/line-items`, {
+        method: 'POST',
+        body: newLine,
       }),
     );
 
@@ -198,30 +231,65 @@ describe('line item routes', () => {
     });
   });
 
-  it('POST returns 404 when the session is missing', async () => {
-    spyOn(Session, 'findById').mockResolvedValue(null);
+  it('POST returns 401 without a token', async () => {
+    const session = draftSession();
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      jsonRequest('/sessions/sid/line-items', 'POST', {
-        name: 'Vino',
-        quantity: 1,
-        unitPriceCents: 100,
+      request(`/sessions/${session._id}/line-items`, {
+        method: 'POST',
+        body: newLine,
+        token: null,
       }),
     );
 
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe('Session not found');
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe('Unauthorized');
   });
 
-  it('POST returns 422 when a numeric field is negative', async () => {
+  it('POST returns 403 when the token belongs to another session', async () => {
+    mockLookup(draftSession());
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      jsonRequest('/sessions/sid/line-items', 'POST', {
-        name: 'Vino',
-        quantity: -1,
-        unitPriceCents: 100,
+      request('/sessions/507f1f77bcf86cd799439011/line-items', {
+        method: 'POST',
+        body: newLine,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
+  });
+
+  it('POST returns 403 for a guest token', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/line-items`, {
+        method: 'POST',
+        body: newLine,
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
+    expect(session.lineItems).toHaveLength(1);
+  });
+
+  it('POST returns 422 when a numeric field is negative', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/line-items`, {
+        method: 'POST',
+        body: { name: 'Vino', quantity: -1, unitPriceCents: 100 },
       }),
     );
 
@@ -232,11 +300,14 @@ describe('line item routes', () => {
   it('PATCH edits a line item and recomputes the total', async () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
-    spyOn(Session, 'findById').mockResolvedValue(session);
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      jsonRequest(`/sessions/sid/line-items/${id}`, 'PATCH', { quantity: 4 }),
+      request(`/sessions/${session._id}/line-items/${id}`, {
+        method: 'PATCH',
+        body: { quantity: 4 },
+      }),
     );
 
     expect(res.status).toBe(200);
@@ -248,17 +319,15 @@ describe('line item routes', () => {
   });
 
   it('PATCH returns 404 when the line item is missing', async () => {
-    spyOn(Session, 'findById').mockResolvedValue(draftSession());
+    const session = draftSession();
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      jsonRequest(
-        '/sessions/sid/line-items/507f1f77bcf86cd799439011',
-        'PATCH',
-        {
-          name: 'x',
-        },
-      ),
+      request(`/sessions/${session._id}/line-items/507f1f77bcf86cd799439011`, {
+        method: 'PATCH',
+        body: { name: 'x' },
+      }),
     );
 
     expect(res.status).toBe(404);
@@ -266,15 +335,13 @@ describe('line item routes', () => {
   });
 
   it('POST maps an unexpected error to 500 via onError', async () => {
-    spyOn(Session, 'findById').mockRejectedValue(new Error('mongo down'));
+    spyOn(Session, 'findOne').mockImplementation((() => {
+      throw new Error('mongo down');
+    }) as never);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      jsonRequest('/sessions/sid/line-items', 'POST', {
-        name: 'Vino',
-        quantity: 1,
-        unitPriceCents: 100,
-      }),
+      request('/sessions/sid/line-items', { method: 'POST', body: newLine }),
     );
 
     expect(res.status).toBe(500);
@@ -292,12 +359,11 @@ describe('GET /sessions/:sessionId', () => {
   });
 
   it('returns 200 with the session view', async () => {
-    spyOn(Session, 'findById').mockResolvedValue(draftSession());
+    const session = draftSession();
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
-    const res = await app.handle(
-      new Request('http://localhost/sessions/sid', { method: 'GET' }),
-    );
+    const res = await app.handle(request(`/sessions/${session._id}`));
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -305,16 +371,61 @@ describe('GET /sessions/:sessionId', () => {
     expect(body.lineItems).toHaveLength(1);
   });
 
-  it('returns 404 when the session is missing', async () => {
-    spyOn(Session, 'findById').mockResolvedValue(null);
+  it('never leaks the device token hashes', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(request(`/sessions/${session._id}`));
+
+    const raw = await res.text();
+    expect(raw).not.toContain('participants');
+    expect(raw).not.toContain(hashToken(OWNER_TOKEN));
+  });
+
+  it('lets a guest read the session', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      new Request('http://localhost/sessions/sid', { method: 'GET' }),
+      request(`/sessions/${session._id}`, { token: GUEST_TOKEN }),
     );
 
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe('Session not found');
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 401 without a token', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, { token: null }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe('Unauthorized');
+  });
+
+  it('returns 401 when the token matches no session', async () => {
+    mockLookup(null);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(request('/sessions/sid'));
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe('Unauthorized');
+  });
+
+  it('returns 403 — not 404 — when the token belongs to another session', async () => {
+    mockLookup(draftSession());
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(request('/sessions/507f1f77bcf86cd799439011'));
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
   });
 });
 
@@ -335,11 +446,11 @@ describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
   it('removes the line and returns 200 with the updated view', async () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
-    spyOn(Session, 'findById').mockResolvedValue(session);
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      new Request(`http://localhost/sessions/sid/line-items/${id}`, {
+      request(`/sessions/${session._id}/line-items/${id}`, {
         method: 'DELETE',
       }),
     );
@@ -351,17 +462,34 @@ describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
   });
 
   it('returns 404 when the line item is missing', async () => {
-    spyOn(Session, 'findById').mockResolvedValue(draftSession());
+    const session = draftSession();
+    mockLookup(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      new Request(
-        'http://localhost/sessions/sid/line-items/507f1f77bcf86cd799439011',
-        { method: 'DELETE' },
-      ),
+      request(`/sessions/${session._id}/line-items/507f1f77bcf86cd799439011`, {
+        method: 'DELETE',
+      }),
     );
 
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('Line item not found');
+  });
+
+  it('returns 403 for a guest token and keeps the line', async () => {
+    const session = sessionWithGuest();
+    const id = String(session.lineItems[0]._id);
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/line-items/${id}`, {
+        method: 'DELETE',
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(session.lineItems).toHaveLength(1);
   });
 });

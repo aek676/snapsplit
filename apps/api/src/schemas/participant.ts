@@ -2,8 +2,8 @@ import { type InferSchemaType, model, Schema } from 'mongoose';
 
 export const participantSchema = new Schema(
   {
-    name: { type: String, required: true },
-    deviceToken: { type: String, required: true },
+    name: { type: String },
+    deviceTokenHash: { type: String, required: true, select: false },
     isOwner: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: 'joinedAt', updatedAt: false } },
