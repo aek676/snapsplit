@@ -1,14 +1,17 @@
 import { Elysia, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
+import { authPlugin } from '../../plugins/auth';
 import { gcsReceiptStorage } from '../../storage/gcs';
+import { AuthModel } from '../auth/model';
 import { SessionModel } from './model';
-import { SessionService } from './service';
+import { SessionService, toSessionView } from './service';
 
 export function createSessionModule(service: SessionService) {
   return new Elysia({
     prefix: '/sessions',
     name: 'sessions',
   })
+    .use(authPlugin)
     .onError(({ code, error, status }) => {
       if (code === 'VALIDATION') return;
       console.error('Unexpected error in sessions module:', error);
@@ -29,11 +32,13 @@ export function createSessionModule(service: SessionService) {
         tags: ['Sessions'],
       },
     })
-    .get('/:sessionId', ({ params }) => service.getSession(params.sessionId), {
+    .get('/:sessionId', ({ session }) => toSessionView(session), {
+      auth: true,
       params: SessionModel.sessionParams,
       response: {
         200: SessionModel.draftSessionResponse,
-        404: SessionModel.sessionNotFound,
+        401: AuthModel.unauthorized,
+        403: AuthModel.forbidden,
         500: SessionModel.internalError,
       },
       detail: {
@@ -43,13 +48,15 @@ export function createSessionModule(service: SessionService) {
     })
     .post(
       '/:sessionId/line-items',
-      ({ params, body }) => service.addLineItem(params.sessionId, body),
+      ({ session, body }) => service.addLineItem(session, body),
       {
+        owner: true,
         params: SessionModel.sessionParams,
         body: SessionModel.lineItemCreateBody,
         response: {
           200: SessionModel.draftSessionResponse,
-          404: SessionModel.sessionNotFound,
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
           409: SessionModel.sessionNotDraft,
           500: SessionModel.internalError,
         },
@@ -61,17 +68,17 @@ export function createSessionModule(service: SessionService) {
     )
     .patch(
       '/:sessionId/line-items/:lineItemId',
-      ({ params, body }) =>
-        service.updateLineItem(params.sessionId, params.lineItemId, body),
+      ({ session, params, body }) =>
+        service.updateLineItem(session, params.lineItemId, body),
       {
+        owner: true,
         params: SessionModel.lineItemParams,
         body: SessionModel.lineItemUpdateBody,
         response: {
           200: SessionModel.draftSessionResponse,
-          404: t.Union([
-            SessionModel.sessionNotFound,
-            SessionModel.lineItemNotFound,
-          ]),
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          404: SessionModel.lineItemNotFound,
           409: SessionModel.sessionNotDraft,
           500: SessionModel.internalError,
         },
@@ -83,16 +90,16 @@ export function createSessionModule(service: SessionService) {
     )
     .delete(
       '/:sessionId/line-items/:lineItemId',
-      ({ params }) =>
-        service.deleteLineItem(params.sessionId, params.lineItemId),
+      ({ session, params }) =>
+        service.deleteLineItem(session, params.lineItemId),
       {
+        owner: true,
         params: SessionModel.lineItemParams,
         response: {
           200: SessionModel.draftSessionResponse,
-          404: t.Union([
-            SessionModel.sessionNotFound,
-            SessionModel.lineItemNotFound,
-          ]),
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          404: SessionModel.lineItemNotFound,
           409: SessionModel.sessionNotDraft,
           500: SessionModel.internalError,
         },

@@ -1,5 +1,5 @@
 import { status } from 'elysia';
-import { type HydratedDocument, Error as MongooseError } from 'mongoose';
+import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { type LineItem, type Participant, Session } from '../../schemas';
 import type { ReceiptStorage } from '../../storage/receipt-storage';
@@ -34,15 +34,13 @@ export function buildDraftPayload(
     totalCents: extracted.totalCents,
     receiptImageUrl,
     participants: [{ deviceTokenHash, isOwner: true }],
-    lineItems: extracted.lineItems.map(
-      (item): LineItemInput => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPriceCents: item.unitPriceCents,
-        lineTotalCents: item.lineTotalCents,
-        aiConfidence: item.aiConfidence,
-      }),
-    ),
+    lineItems: extracted.lineItems.map((item): LineItemInput => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+      lineTotalCents: item.lineTotalCents,
+      aiConfidence: item.aiConfidence,
+    })),
   };
 }
 
@@ -107,27 +105,10 @@ export class SessionService {
     }
   }
 
-  private async findSession(sessionId: string) {
-    try {
-      return await Session.findById(sessionId);
-    } catch (error) {
-      if (error instanceof MongooseError.CastError) return null;
-      throw error;
-    }
-  }
-
-  async getSession(sessionId: string) {
-    const session = await this.findSession(sessionId);
-    if (!session) return status(404, SessionModel.sessionNotFound.const);
-    return toSessionView(session);
-  }
-
   async addLineItem(
-    sessionId: string,
+    session: HydratedDocument<Session>,
     input: SessionModel['lineItemCreateBody'],
   ) {
-    const session = await this.findSession(sessionId);
-    if (!session) return status(404, SessionModel.sessionNotFound.const);
     if (session.status !== 'draft')
       return status(409, SessionModel.sessionNotDraft.const);
 
@@ -145,12 +126,10 @@ export class SessionService {
   }
 
   async updateLineItem(
-    sessionId: string,
+    session: HydratedDocument<Session>,
     lineItemId: string,
     patch: SessionModel['lineItemUpdateBody'],
   ) {
-    const session = await this.findSession(sessionId);
-    if (!session) return status(404, SessionModel.sessionNotFound.const);
     if (session.status !== 'draft')
       return status(409, SessionModel.sessionNotDraft.const);
 
@@ -178,9 +157,7 @@ export class SessionService {
     return toSessionView(session);
   }
 
-  async deleteLineItem(sessionId: string, lineItemId: string) {
-    const session = await this.findSession(sessionId);
-    if (!session) return status(404, SessionModel.sessionNotFound.const);
+  async deleteLineItem(session: HydratedDocument<Session>, lineItemId: string) {
     if (session.status !== 'draft')
       return status(409, SessionModel.sessionNotDraft.const);
 

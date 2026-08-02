@@ -48,7 +48,6 @@ export const SessionModel = {
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
   internalError: t.Literal('Unexpected server error'),
-  sessionNotFound: t.Literal('Session not found'),
   lineItemNotFound: t.Literal('Line item not found'),
   sessionNotDraft: t.Literal('Session is not editable'),
 } as const;
