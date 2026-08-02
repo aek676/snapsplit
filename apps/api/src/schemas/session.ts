@@ -30,7 +30,8 @@ sessionSchema.index(
   { code: 1 },
   { unique: true, partialFilterExpression: { code: { $type: 'string' } } },
 );
-sessionSchema.index({ 'participants.deviceToken': 1 });
+sessionSchema.index({ 'participants.deviceTokenHash': 1 });
+sessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 }); // 90 days
 
 export type Session = InferSchemaType<typeof sessionSchema>;
 export const Session = model('Session', sessionSchema);
