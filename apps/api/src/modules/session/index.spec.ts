@@ -170,9 +170,9 @@ function sessionWithGuest() {
 }
 
 function mockLookup(session: unknown) {
-  return spyOn(Session, 'findOne').mockImplementation(
-    (async () => session) as never,
-  );
+  const promise = Promise.resolve(session);
+  const query = Object.assign(promise, { select: mock(() => promise) });
+  return spyOn(Session, 'findOne').mockImplementation((() => query) as never);
 }
 
 function request(

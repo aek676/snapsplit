@@ -8,6 +8,14 @@ function bearerFrom(authorization?: string) {
   return scheme?.toLowerCase() === 'bearer' && token ? token : null;
 }
 
+const DEVICE_TOKEN_PROJECTION = '+participants.deviceTokenHash';
+
+export function findSessionByDeviceTokenHash(deviceTokenHash: string) {
+  return Session.findOne({
+    'participants.deviceTokenHash': deviceTokenHash,
+  }).select(DEVICE_TOKEN_PROJECTION);
+}
+
 export const authPlugin = new Elysia({ name: 'auth' })
   .macro('auth', {
     params: t.Object({ sessionId: t.String() }),
@@ -16,10 +24,7 @@ export const authPlugin = new Elysia({ name: 'auth' })
       if (!token) return status(401, AuthModel.unauthorized.const);
 
       const deviceTokenHash = hashToken(token);
-      const session = await Session.findOne(
-        { 'participants.deviceTokenHash': deviceTokenHash },
-        '+participants.deviceTokenHash',
-      );
+      const session = await findSessionByDeviceTokenHash(deviceTokenHash);
       if (!session) return status(401, AuthModel.unauthorized.const);
 
       if (params.sessionId !== String(session._id))

@@ -18,14 +18,14 @@ function sessionWith(participants: { token: string; isOwner: boolean }[]) {
   });
 }
 
-/**
- * `findOne` se consume con `await` directo (la proyección va como segundo
- * argumento, no encadenada), así que basta con resolver el documento.
- */
 function mockLookup(session: unknown) {
-  return spyOn(Session, 'findOne').mockImplementation(
-    (async () => session) as never,
+  const promise = Promise.resolve(session);
+  const select = mock(() => promise);
+  const query = Object.assign(promise, { select });
+  const findOne = spyOn(Session, 'findOne').mockImplementation(
+    (() => query) as never,
   );
+  return { findOne, select };
 }
 
 const app = new Elysia()
@@ -55,7 +55,7 @@ describe('auth macro', () => {
   });
 
   it('returns 401 when the Authorization header is missing', async () => {
-    const findOne = mockLookup(null);
+    const { findOne } = mockLookup(null);
 
     const res = await get('/sessions/sid');
 
@@ -69,7 +69,7 @@ describe('auth macro', () => {
     ['a bearer scheme with no token', 'Bearer'],
     ['an empty token', 'Bearer '],
   ])('returns 401 for %s', async (_label, authorization) => {
-    const findOne = mockLookup(null);
+    const { findOne } = mockLookup(null);
 
     const res = await get('/sessions/sid', authorization);
 
@@ -97,14 +97,14 @@ describe('auth macro', () => {
 
   it('looks the session up by the hash, never by the raw token', async () => {
     const session = sessionWith([{ token: OWNER_TOKEN, isOwner: true }]);
-    const findOne = mockLookup(session);
+    const { findOne, select } = mockLookup(session);
 
     await get(`/sessions/${session._id}`, `Bearer ${OWNER_TOKEN}`);
 
-    expect(findOne).toHaveBeenCalledWith(
-      { 'participants.deviceTokenHash': hashToken(OWNER_TOKEN) },
-      '+participants.deviceTokenHash',
-    );
+    expect(findOne).toHaveBeenCalledWith({
+      'participants.deviceTokenHash': hashToken(OWNER_TOKEN),
+    });
+    expect(select).toHaveBeenCalledWith('+participants.deviceTokenHash');
   });
 
   it('returns 403 when the token belongs to another session', async () => {
