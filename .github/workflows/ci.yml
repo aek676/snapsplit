@@ -58,4 +58,4 @@ jobs:
         run: bunx nx sync:check
 
       - name: Format, lint, typecheck, test & build (affected)
-        run: bunx nx affected -t format:check lint tsc:typecheck test build
+        run: bunx nx affected -t format:check lint tsc:typecheck test test:integration build
