@@ -24,8 +24,8 @@ function getSession(sessionId: string, authorization?: string) {
   );
 }
 
-describe('hilo completo: /analyze emite un token que abre su sesión', () => {
-  it('guarda el hash del token entregado, nunca el token', async () => {
+describe('full thread: /analyze issues a token that opens its session', () => {
+  it('stores the hash of the issued token, never the token itself', async () => {
     const draft = await createDraft();
 
     const raw = await Session.collection.findOne({
@@ -40,7 +40,7 @@ describe('hilo completo: /analyze emite un token que abre su sesión', () => {
     expect(JSON.stringify(raw)).not.toContain(draft.auth.token);
   });
 
-  it('devuelve 200 y no filtra el token en la vista', async () => {
+  it('returns 200 without leaking the token in the view', async () => {
     const draft = await createDraft();
 
     const res = await getSession(draft.id, `Bearer ${draft.auth.token}`);
@@ -53,7 +53,7 @@ describe('hilo completo: /analyze emite un token que abre su sesión', () => {
     expect(body).not.toHaveProperty('participants');
   });
 
-  it('deja al dueño editar las líneas del borrador', async () => {
+  it('lets the owner edit the draft line items', async () => {
     const draft = await createDraft();
 
     const res = await app.handle(
@@ -75,7 +75,7 @@ describe('hilo completo: /analyze emite un token que abre su sesión', () => {
     expect(await res.json()).toMatchObject({ totalCents: 950 });
   });
 
-  it('devuelve 401 sin cabecera', async () => {
+  it('returns 401 without a header', async () => {
     const draft = await createDraft();
 
     const res = await getSession(draft.id);
@@ -84,7 +84,7 @@ describe('hilo completo: /analyze emite un token que abre su sesión', () => {
     expect(await res.text()).toBe('Unauthorized');
   });
 
-  it('devuelve 401 con un token que no existe en la base de datos', async () => {
+  it('returns 401 for a token that does not exist in the database', async () => {
     const draft = await createDraft();
 
     const res = await getSession(draft.id, 'Bearer no-existe');
@@ -92,7 +92,7 @@ describe('hilo completo: /analyze emite un token que abre su sesión', () => {
     expect(res.status).toBe(401);
   });
 
-  it('devuelve 403 con el token de otra sesión', async () => {
+  it('returns 403 with another session token', async () => {
     const mine = await createDraft();
     const other = await createDraft();
 

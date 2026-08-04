@@ -17,13 +17,12 @@ function seedSession() {
   });
 }
 
-/** Lee el documento por el driver, saltándose las proyecciones de mongoose. */
 function stored(_id: Types.ObjectId) {
   return Session.collection.findOne({ _id });
 }
 
 describe('participants.deviceTokenHash', () => {
-  it('no viaja en una lectura normal, aunque esté guardado', async () => {
+  it('does not travel on a normal read, even though it is stored', async () => {
     const created = await seedSession();
 
     const loaded = await Session.findById(created._id);
@@ -37,7 +36,7 @@ describe('participants.deviceTokenHash', () => {
     expect(raw?.participants[1].deviceTokenHash).toBe(GUEST_HASH);
   });
 
-  it('vuelve con la query que ejecuta el macro', async () => {
+  it('comes back with the query the macro runs', async () => {
     const created = await seedSession();
 
     const found = await findSessionByDeviceTokenHash(GUEST_HASH);
@@ -50,18 +49,15 @@ describe('participants.deviceTokenHash', () => {
     expect(participant?.isOwner).toBe(false);
   });
 
-  it('no resuelve ninguna sesión para un hash desconocido', async () => {
+  it('resolves no session for an unknown hash', async () => {
     await seedSession();
 
     expect(await findSessionByDeviceTokenHash(hashToken('nope'))).toBeNull();
   });
 });
 
-describe('mutar participants sobre un documento sin la proyección', () => {
-  // `loaded.participants = [...]` no compila: TypeScript exige un DocumentArray
-  // y no acepta el array plano que devuelve `.filter()`. Pero `.set()` sí pasa,
-  // igual que cualquier `as never`, y es por donde entra el footgun de verdad.
-  it('reasignar el array borra la credencial de los supervivientes', async () => {
+describe('mutating participants on a document without the projection', () => {
+  it('reassigning the array wipes the survivors credential', async () => {
     const created = await seedSession();
     const loaded = await Session.findById(created._id);
     if (!loaded) throw new Error('la sesión sembrada no se pudo leer');
@@ -78,7 +74,7 @@ describe('mutar participants sobre un documento sin la proyección', () => {
     expect(raw?.participants[0].deviceTokenHash).toBeUndefined();
   });
 
-  it('.pull() conserva la credencial del resto', async () => {
+  it('.pull() keeps the credential of the rest', async () => {
     const created = await seedSession();
     const loaded = await Session.findById(created._id);
     const guest = loaded?.participants.find(
@@ -97,8 +93,8 @@ describe('mutar participants sobre un documento sin la proyección', () => {
   });
 });
 
-describe('índices de la colección de sesiones', () => {
-  it('son exactamente los declarados en el schema', async () => {
+describe('session collection indexes', () => {
+  it('are exactly the ones declared in the schema', async () => {
     await Session.syncIndexes();
 
     const indexes = await Session.collection.indexes();
@@ -117,8 +113,6 @@ describe('índices de la colección de sesiones', () => {
       unique: true,
       partialFilterExpression: { code: { $type: 'string' } },
     });
-    // El monitor de TTL de mongod corre cada 60 s: se afirma que el índice
-    // existe, nunca que expire.
     expect(byKey.get('{"createdAt":1}')?.expireAfterSeconds).toBe(
       90 * 24 * 3600,
     );
