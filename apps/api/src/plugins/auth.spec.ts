@@ -18,14 +18,12 @@ function sessionWith(participants: { token: string; isOwner: boolean }[]) {
   });
 }
 
-/**
- * `findOne` se consume con `await` directo (la proyección va como segundo
- * argumento, no encadenada), así que basta con resolver el documento.
- */
 function mockLookup(session: unknown) {
-  return spyOn(Session, 'findOne').mockImplementation(
-    (async () => session) as never,
-  );
+  const promise = Promise.resolve(session);
+  const query = Object.assign(promise, { select: mock(() => promise) });
+  const findOne = mock((_filter: unknown) => query);
+  spyOn(Session, 'findOne').mockImplementation(findOne as never);
+  return findOne;
 }
 
 const app = new Elysia()
@@ -101,10 +99,9 @@ describe('auth macro', () => {
 
     await get(`/sessions/${session._id}`, `Bearer ${OWNER_TOKEN}`);
 
-    expect(findOne).toHaveBeenCalledWith(
-      { 'participants.deviceTokenHash': hashToken(OWNER_TOKEN) },
-      '+participants.deviceTokenHash',
-    );
+    expect(findOne.mock.calls[0][0]).toEqual({
+      'participants.deviceTokenHash': hashToken(OWNER_TOKEN),
+    });
   });
 
   it('returns 403 when the token belongs to another session', async () => {

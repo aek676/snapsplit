@@ -170,9 +170,9 @@ function sessionWithGuest() {
 }
 
 function mockLookup(session: unknown) {
-  return spyOn(Session, 'findOne').mockImplementation(
-    (async () => session) as never,
-  );
+  const promise = Promise.resolve(session);
+  const query = Object.assign(promise, { select: mock(() => promise) });
+  return spyOn(Session, 'findOne').mockImplementation((() => query) as never);
 }
 
 function request(
@@ -229,38 +229,6 @@ describe('line item routes', () => {
       lineTotalCents: 600,
       aiConfidence: 1,
     });
-  });
-
-  it('POST returns 401 without a token', async () => {
-    const session = draftSession();
-    mockLookup(session);
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
-
-    const res = await app.handle(
-      request(`/sessions/${session._id}/line-items`, {
-        method: 'POST',
-        body: newLine,
-        token: null,
-      }),
-    );
-
-    expect(res.status).toBe(401);
-    expect(await res.text()).toBe('Unauthorized');
-  });
-
-  it('POST returns 403 when the token belongs to another session', async () => {
-    mockLookup(draftSession());
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
-
-    const res = await app.handle(
-      request('/sessions/507f1f77bcf86cd799439011/line-items', {
-        method: 'POST',
-        body: newLine,
-      }),
-    );
-
-    expect(res.status).toBe(403);
-    expect(await res.text()).toBe('Forbidden');
   });
 
   it('POST returns 403 for a guest token', async () => {
@@ -393,39 +361,6 @@ describe('GET /sessions/:sessionId', () => {
     );
 
     expect(res.status).toBe(200);
-  });
-
-  it('returns 401 without a token', async () => {
-    const session = draftSession();
-    mockLookup(session);
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
-
-    const res = await app.handle(
-      request(`/sessions/${session._id}`, { token: null }),
-    );
-
-    expect(res.status).toBe(401);
-    expect(await res.text()).toBe('Unauthorized');
-  });
-
-  it('returns 401 when the token matches no session', async () => {
-    mockLookup(null);
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
-
-    const res = await app.handle(request('/sessions/sid'));
-
-    expect(res.status).toBe(401);
-    expect(await res.text()).toBe('Unauthorized');
-  });
-
-  it('returns 403 — not 404 — when the token belongs to another session', async () => {
-    mockLookup(draftSession());
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
-
-    const res = await app.handle(request('/sessions/507f1f77bcf86cd799439011'));
-
-    expect(res.status).toBe(403);
-    expect(await res.text()).toBe('Forbidden');
   });
 });
 

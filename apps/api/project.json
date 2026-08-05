@@ -14,9 +14,19 @@
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
+      "inputs": ["default", "^production", "!{projectRoot}/test/**"],
+      "outputs": ["{projectRoot}/coverage/unit"],
       "options": {
         "cwd": "apps/api",
-        "command": "bun test"
+        "command": "bun test --coverage-dir coverage/unit src"
+      }
+    },
+    "test:integration": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/api",
+        "command": "bun test --preload ./test/setup.ts --coverage-dir coverage/integration test"
       }
     },
     "build": {
