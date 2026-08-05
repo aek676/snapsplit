@@ -21,7 +21,9 @@ function sessionWith(participants: { token: string; isOwner: boolean }[]) {
 function mockLookup(session: unknown) {
   const promise = Promise.resolve(session);
   const query = Object.assign(promise, { select: mock(() => promise) });
-  return spyOn(Session, 'findOne').mockImplementation((() => query) as never);
+  const findOne = mock((_filter: unknown) => query);
+  spyOn(Session, 'findOne').mockImplementation(findOne as never);
+  return findOne;
 }
 
 const app = new Elysia()
@@ -89,6 +91,17 @@ describe('auth macro', () => {
 
     expect(res.status).toBe(401);
     expect(await res.text()).toBe('Unauthorized');
+  });
+
+  it('looks the session up by the hash, never by the raw token', async () => {
+    const session = sessionWith([{ token: OWNER_TOKEN, isOwner: true }]);
+    const findOne = mockLookup(session);
+
+    await get(`/sessions/${session._id}`, `Bearer ${OWNER_TOKEN}`);
+
+    expect(findOne.mock.calls[0][0]).toEqual({
+      'participants.deviceTokenHash': hashToken(OWNER_TOKEN),
+    });
   });
 
   it('returns 403 when the token belongs to another session', async () => {
