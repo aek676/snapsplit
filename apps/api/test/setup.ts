@@ -10,13 +10,12 @@ const STARTUP_TIMEOUT_MS = 180_000;
 const DATABASE_NAME = 'snapsplit-test';
 
 let mongoContainer: StartedMongoDBContainer;
-export let mongoUri: string;
 
 beforeAll(
   async () => {
     mongoContainer = await new MongoDBContainer('mongo:7.0').start();
 
-    mongoUri = `${mongoContainer.getConnectionString()}/?directConnection=true`;
+    const mongoUri = `${mongoContainer.getConnectionString()}/?directConnection=true`;
 
     await mongoose.connect(mongoUri, { dbName: DATABASE_NAME });
   },
