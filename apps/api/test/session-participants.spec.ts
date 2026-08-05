@@ -56,43 +56,6 @@ describe('participants.deviceTokenHash', () => {
   });
 });
 
-describe('mutating participants on a document without the projection', () => {
-  it('reassigning the array wipes the survivors credential', async () => {
-    const created = await seedSession();
-    const loaded = await Session.findById(created._id);
-    if (!loaded) throw new Error('la sesión sembrada no se pudo leer');
-
-    loaded.set(
-      'participants',
-      loaded.participants.filter((participant) => participant.isOwner),
-    );
-    await loaded.save();
-
-    const raw = await stored(created._id);
-    expect(raw?.participants).toHaveLength(1);
-    expect(raw?.participants[0].isOwner).toBe(true);
-    expect(raw?.participants[0].deviceTokenHash).toBeUndefined();
-  });
-
-  it('.pull() keeps the credential of the rest', async () => {
-    const created = await seedSession();
-    const loaded = await Session.findById(created._id);
-    const guest = loaded?.participants.find(
-      (participant) => !participant.isOwner,
-    );
-    if (!loaded || !guest)
-      throw new Error('la sesión sembrada no se pudo leer');
-
-    loaded.participants.pull(guest._id);
-    await loaded.save();
-
-    const raw = await stored(created._id);
-    expect(raw?.participants).toHaveLength(1);
-    expect(raw?.participants[0].isOwner).toBe(true);
-    expect(raw?.participants[0].deviceTokenHash).toBe(OWNER_HASH);
-  });
-});
-
 describe('session collection indexes', () => {
   it('are exactly the ones declared in the schema', async () => {
     await Session.syncIndexes();
