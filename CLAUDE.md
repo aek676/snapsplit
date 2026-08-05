@@ -10,6 +10,19 @@ understand the context and requirements.
 This workspace uses **bun**. Run nx tasks with `bun nx <target>` (e.g. `bun nx build web`,
 `bun nx lint web`) and manage dependencies with `bun add` / `bun install`. Do not use pnpm or npm.
 
+## Testing
+
+The API has two test targets:
+
+- `bun nx test api` — unit tests over `apps/api/src`. Cached, no external services.
+- `bun nx test:integration api` — integration tests over `apps/api/test`. **Requires a
+  reachable Docker socket**: `apps/api/test/setup.ts` boots a `mongo:7.0` testcontainer for
+  the run. Without Docker the suite fails while starting the container. Caching is disabled,
+  and the first run pulls the image, so allow up to the 180s startup budget.
+
+`bun nx run-many -t test` and the root `test` script cover only the unit target. Run
+`test:integration` explicitly, as CI does via `bun nx affected -t ... test test:integration`.
+
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 
