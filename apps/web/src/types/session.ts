@@ -10,3 +10,8 @@ export type Session = NonNullable<
 >;
 
 export type LineItem = Session['lineItems'][number];
+
+/** Credentials the API hands out once, when it creates the session. */
+export type SessionAuth = NonNullable<
+  Awaited<ReturnType<typeof api.sessions.analyze.post>>['data']
+>['auth'];
