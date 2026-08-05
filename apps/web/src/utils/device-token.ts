@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SessionAuth } from '@/types/session';
+import { isObjectId } from './object-id';
 
 const PREFIX = 'snapsplit.dt.';
 
@@ -18,8 +19,8 @@ function storage(): Storage | null {
   }
 }
 
-function keyFor(sessionId: string) {
-  return `${PREFIX}${sessionId}`;
+function keyFor(sessionId: string): string | null {
+  return isObjectId(sessionId) ? `${PREFIX}${sessionId}` : null;
 }
 
 function parse(raw: string | null): SessionAuth | null {
@@ -36,27 +37,36 @@ function parse(raw: string | null): SessionAuth | null {
 }
 
 export function getToken(sessionId: string): SessionAuth | null {
+  const key = keyFor(sessionId);
+  if (!key) return null;
+
   const store = storage();
   if (!store) return null;
 
-  return parse(store.getItem(keyFor(sessionId)));
+  return parse(store.getItem(key));
 }
 
 export function setToken(sessionId: string, auth: SessionAuth): void {
+  const key = keyFor(sessionId);
+  if (!key) return;
+
   const store = storage();
   if (!store) return;
 
   try {
     const entry: StoredToken = { ...auth, savedAt: Date.now() };
-    store.setItem(keyFor(sessionId), JSON.stringify(entry));
+    store.setItem(key, JSON.stringify(entry));
   } catch {}
 }
 
 export function clearToken(sessionId: string): void {
+  const key = keyFor(sessionId);
+  if (!key) return;
+
   const store = storage();
   if (!store) return;
 
   try {
-    store.removeItem(keyFor(sessionId));
+    store.removeItem(key);
   } catch {}
 }
