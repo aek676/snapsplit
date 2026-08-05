@@ -1,4 +1,10 @@
 import { t } from 'elysia';
+import { OBJECT_ID_PATTERN } from '../../constants';
+
+export const objectId = t.String({
+  pattern: OBJECT_ID_PATTERN,
+  error: 'Invalid id',
+});
 
 export const AuthModel = {
   unauthorized: t.Literal('Unauthorized'),

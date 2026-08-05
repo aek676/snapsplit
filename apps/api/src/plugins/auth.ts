@@ -1,5 +1,5 @@
 import { Elysia, status, t } from 'elysia';
-import { AuthModel } from '../modules/auth/model';
+import { AuthModel, objectId } from '../modules/auth/model';
 import { hashToken } from '../modules/auth/service';
 import { Session } from '../schemas';
 
@@ -18,7 +18,7 @@ export function findSessionByDeviceTokenHash(deviceTokenHash: string) {
 
 export const authPlugin = new Elysia({ name: 'auth' })
   .macro('auth', {
-    params: t.Object({ sessionId: t.String() }),
+    params: t.Object({ sessionId: objectId }),
     async resolve({ headers, params }) {
       const token = bearerFrom(headers.authorization);
       if (!token) return status(401, AuthModel.unauthorized.const);

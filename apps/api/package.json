@@ -9,8 +9,8 @@
       "default": "./src/app.ts"
     },
     "./constants": {
-      "types": "./src/storage/receipt-storage.ts",
-      "default": "./src/storage/receipt-storage.ts"
+      "types": "./src/constants.ts",
+      "default": "./src/constants.ts"
     }
   }
 }
