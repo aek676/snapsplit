@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  authHeader,
-  sessionIdFromPath,
-  sessionIdFromUrl,
-} from '@/lib/auth';
+import { authHeader, sessionIdFromPath, sessionIdFromUrl } from '@/lib/auth';
 import { setToken } from '@/utils/device-token';
 
 const SESSION_ID = '507f1f77bcf86cd799439011';
