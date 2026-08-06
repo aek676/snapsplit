@@ -5,9 +5,32 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { routeTree } from '@/app/route-tree.gen';
+import { serve } from '@/testing/respond';
 import { setToken } from '@/utils/device-token';
+
+const SESSION_ID = '507f1f77bcf86cd799439011';
+
+const session = {
+  id: SESSION_ID,
+  status: 'draft',
+  merchant: 'Bar Manolo',
+  date: '2026-08-06',
+  currency: 'EUR',
+  totalCents: 1250,
+  receiptImageUrl: '/receipts/stored-123',
+  lineItems: [
+    {
+      id: 'line-1',
+      name: 'Vino de la casa',
+      quantity: 1,
+      unitPriceCents: 1250,
+      lineTotalCents: 1250,
+      aiConfidence: 0.97,
+    },
+  ],
+};
 
 function renderAt(path: string) {
   const router = createRouter({
@@ -27,6 +50,7 @@ function renderAt(path: string) {
 
 describe('router', () => {
   afterEach(() => {
+    vi.unstubAllGlobals();
     window.localStorage.clear();
   });
 
@@ -41,17 +65,20 @@ describe('router', () => {
   });
 
   it('redirects the review screen home without a device token', async () => {
-    renderAt('/sessions/507f1f77bcf86cd799439011/review');
+    renderAt(`/sessions/${SESSION_ID}/review`);
     expect(await screen.findByText('Split the bill, snap it')).toBeDefined();
   });
 
   it('lets the review screen load with a device token', async () => {
-    setToken('507f1f77bcf86cd799439011', {
+    setToken(SESSION_ID, {
       participantId: 'participant-1',
       token: 'device-token',
     });
+    serve(200, session);
 
-    renderAt('/sessions/507f1f77bcf86cd799439011/review');
-    expect(await screen.findByText(/couldn't load this session/i)).toBeDefined();
+    renderAt(`/sessions/${SESSION_ID}/review`);
+
+    expect(await screen.findByText('Review receipt')).toBeDefined();
+    expect(await screen.findByText('Vino de la casa')).toBeDefined();
   });
 });
