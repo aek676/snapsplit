@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { authHeader, sessionIdFromPath } from '@/lib/auth-headers';
+import {
+  authHeader,
+  sessionIdFromPath,
+  sessionIdFromUrl,
+} from '@/lib/auth';
 import { setToken } from '@/utils/device-token';
 
 const SESSION_ID = '507f1f77bcf86cd799439011';
@@ -26,6 +30,31 @@ describe('sessionIdFromPath', () => {
     ['another resource', '/receipts/abc'],
   ])('returns null for %s', (_label, path) => {
     expect(sessionIdFromPath(path)).toBeNull();
+  });
+});
+
+describe('sessionIdFromUrl', () => {
+  it.each([
+    ['an absolute api url', `http://localhost:3000/sessions/${SESSION_ID}`],
+    [
+      'a nested resource',
+      `http://localhost:3000/sessions/${SESSION_ID}/line-items`,
+    ],
+    ['a query string', `http://localhost:3000/sessions/${SESSION_ID}?x=1`],
+    [
+      'an api mounted under a base path',
+      `http://localhost:3000/api/sessions/${SESSION_ID}`,
+    ],
+  ])('reads the id from %s', (_label, url) => {
+    expect(sessionIdFromUrl(url)).toBe(SESSION_ID);
+  });
+
+  it.each([
+    ['the analyze route', 'http://localhost:3000/sessions/analyze'],
+    ['a relative path', `/sessions/${SESSION_ID}`],
+    ['a string that is not a url', 'nonsense'],
+  ])('returns null for %s', (_label, url) => {
+    expect(sessionIdFromUrl(url)).toBeNull();
   });
 });
 
