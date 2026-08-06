@@ -4,7 +4,16 @@ import type { SessionAuth } from '@/types/session';
 
 const PREFIX = 'snapsplit.dt.';
 
-const sessionAuthSchema = z.object({
+export class DeviceTokenStorageError extends Error {
+  constructor() {
+    super(
+      "We couldn't save this session on this device. Enable site storage in your browser and take the photo again.",
+    );
+    this.name = 'DeviceTokenStorageError';
+  }
+}
+
+export const sessionAuthSchema = z.object({
   participantId: z.string().min(1),
   token: z.string().min(1),
 }) satisfies z.ZodType<SessionAuth>;
@@ -46,17 +55,21 @@ export function getToken(sessionId: string): SessionAuth | null {
   return parse(store.getItem(key));
 }
 
-export function setToken(sessionId: string, auth: SessionAuth): void {
+/** Returns whether the token was persisted: without it the session is lost. */
+export function setToken(sessionId: string, auth: SessionAuth): boolean {
   const key = keyFor(sessionId);
-  if (!key) return;
+  if (!key) return false;
 
   const store = storage();
-  if (!store) return;
+  if (!store) return false;
 
   try {
     const entry: StoredToken = { ...auth, savedAt: Date.now() };
     store.setItem(key, JSON.stringify(entry));
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function clearToken(sessionId: string): void {

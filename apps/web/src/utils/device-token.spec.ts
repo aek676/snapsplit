@@ -73,6 +73,10 @@ describe('setToken', () => {
     const stored = JSON.parse(localStorage.getItem(keyFor(SESSION_A)) ?? '');
     expect(stored.savedAt).toBeTypeOf('number');
   });
+
+  it('reports that it persisted the token', () => {
+    expect(setToken(SESSION_A, auth('a'))).toBe(true);
+  });
 });
 
 describe('clearToken', () => {
@@ -127,12 +131,23 @@ describe('when storage is unavailable', () => {
     }
   });
 
+  it('reports that it could not persist the token', () => {
+    const restore = blockStorage();
+
+    try {
+      expect(setToken(SESSION_A, auth('a'))).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
   it('survives a full quota on write', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Quota exceeded.', 'QuotaExceededError');
     });
 
     expect(() => setToken(SESSION_A, auth('a'))).not.toThrow();
+    expect(setToken(SESSION_A, auth('a'))).toBe(false);
   });
 });
 
@@ -144,7 +159,7 @@ describe('ids that cannot name a session', () => {
     ['too many characters', '507f1f77bcf86cd7994390111'],
     ['an empty string', ''],
   ])('writes nothing and reads null for %s', (_label, sessionId) => {
-    setToken(sessionId, auth('x'));
+    expect(setToken(sessionId, auth('x'))).toBe(false);
 
     expect(localStorage.getItem(keyFor(sessionId))).toBeNull();
     expect(getToken(sessionId)).toBeNull();

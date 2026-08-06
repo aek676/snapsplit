@@ -1,7 +1,32 @@
 import { isObjectId } from '@repo/shared-types';
-import { clearToken, getToken } from '@/utils/device-token';
+import { z } from 'zod';
+import {
+  clearToken,
+  getToken,
+  sessionAuthSchema,
+  setToken,
+} from '@/utils/device-token';
 
 const SESSION_PATH = /^\/sessions\/([^/]+)/;
+
+const authCarrierSchema = z.object({
+  id: z.string().refine(isObjectId),
+  auth: sessionAuthSchema,
+});
+
+export async function persistAuth(response: Response): Promise<boolean> {
+  let body: unknown;
+  try {
+    body = await response.clone().json();
+  } catch {
+    return true;
+  }
+
+  const carrier = authCarrierSchema.safeParse(body);
+  if (!carrier.success) return true;
+
+  return setToken(carrier.data.id, carrier.data.auth);
+}
 
 export function sessionIdFromPath(path: string): string | null {
   const candidate = SESSION_PATH.exec(path)?.[1];

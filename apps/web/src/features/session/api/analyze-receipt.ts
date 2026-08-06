@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { api, apiError } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
 import type { Session as AnalyzeReceipt } from '@/types/session';
-import { setToken } from '@/utils/device-token';
 import { getSessionQueryOptions } from './get-session';
 
 export const analyzeReceiptSchema = z.object({
@@ -27,7 +26,6 @@ export const analyzeReceipt = async ({
   return api.sessions.analyze.post({ image }).then(({ data, error }) => {
     if (error) throw apiError(error.value, 'Receipt analysis failed');
     const { auth, ...session } = data;
-    setToken(session.id, auth);
     return session;
   });
 };
