@@ -25,7 +25,8 @@ export const analyzeReceipt = async ({
 }: analyzeReceiptInput): Promise<AnalyzeReceipt> => {
   return api.sessions.analyze.post({ image }).then(({ data, error }) => {
     if (error) throw apiError(error.value, 'Receipt analysis failed');
-    return data;
+    const { auth, ...session } = data;
+    return session;
   });
 };
 

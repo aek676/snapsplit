@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 import { Alert, AlertDescription } from 'shadcn-ui/alert';
 import { Button } from 'shadcn-ui/button';
@@ -6,8 +6,12 @@ import { Spinner } from 'shadcn-ui/spinner';
 import { useSession } from '@/features/session/api/get-session';
 import { ReviewLayout } from '@/features/session/components/session-draft';
 import { LineItemList } from '@/features/session/line-item/components/line-item-list';
+import { getToken } from '@/utils/device-token';
 
 export const Route = createFileRoute('/sessions/$sessionId/review')({
+  beforeLoad: ({ params }) => {
+    if (!getToken(params.sessionId)) throw redirect({ to: '/' });
+  },
   component: ReviewPage,
 });
 

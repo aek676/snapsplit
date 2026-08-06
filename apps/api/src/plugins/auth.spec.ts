@@ -6,6 +6,7 @@ import { authPlugin } from './auth';
 
 const OWNER_TOKEN = 'owner-token-abc';
 const GUEST_TOKEN = 'guest-token-xyz';
+const SESSION_ID = '507f191e810c19729de860ea';
 
 function sessionWith(participants: { token: string; isOwner: boolean }[]) {
   return new Session({
@@ -55,7 +56,7 @@ describe('auth macro', () => {
   it('returns 401 when the Authorization header is missing', async () => {
     const findOne = mockLookup(null);
 
-    const res = await get('/sessions/sid');
+    const res = await get(`/sessions/${SESSION_ID}`);
 
     expect(res.status).toBe(401);
     expect(await res.text()).toBe('Unauthorized');
@@ -69,7 +70,7 @@ describe('auth macro', () => {
   ])('returns 401 for %s', async (_label, authorization) => {
     const findOne = mockLookup(null);
 
-    const res = await get('/sessions/sid', authorization);
+    const res = await get(`/sessions/${SESSION_ID}`, authorization);
 
     expect(res.status).toBe(401);
     expect(findOne).not.toHaveBeenCalled();
@@ -87,10 +88,27 @@ describe('auth macro', () => {
   it('returns 401 when the token matches no session', async () => {
     mockLookup(null);
 
-    const res = await get('/sessions/sid', 'Bearer nope');
+    const res = await get(`/sessions/${SESSION_ID}`, 'Bearer nope');
 
     expect(res.status).toBe(401);
     expect(await res.text()).toBe('Unauthorized');
+  });
+
+  it('returns 422 without a lookup when the id is not an ObjectId', async () => {
+    const findOne = mockLookup(null);
+
+    const res = await get(
+      '/sessions/not-an-object-id',
+      `Bearer ${OWNER_TOKEN}`,
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      type: 'validation',
+      on: 'params',
+      property: '/sessionId',
+    });
+    expect(findOne).not.toHaveBeenCalled();
   });
 
   it('looks the session up by the hash, never by the raw token', async () => {
@@ -167,7 +185,7 @@ describe('owner macro', () => {
   it('still returns 401 when there is no token at all', async () => {
     mockLookup(null);
 
-    const res = await get('/sessions/sid/owner-only');
+    const res = await get(`/sessions/${SESSION_ID}/owner-only`);
 
     expect(res.status).toBe(401);
   });

@@ -309,7 +309,10 @@ describe('line item routes', () => {
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      request('/sessions/sid/line-items', { method: 'POST', body: newLine }),
+      request('/sessions/507f191e810c19729de860ea/line-items', {
+        method: 'POST',
+        body: newLine,
+      }),
     );
 
     expect(res.status).toBe(500);
