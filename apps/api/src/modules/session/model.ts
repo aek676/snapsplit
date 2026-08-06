@@ -1,6 +1,6 @@
 import { t } from 'elysia';
+import { objectId } from '../../model';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/receipt-storage';
-import { objectId } from '../auth/model';
 
 const lineItemView = t.Object({
   id: t.String(),

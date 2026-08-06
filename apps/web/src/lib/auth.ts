@@ -1,5 +1,5 @@
+import { isObjectId } from '@repo/shared-types';
 import { clearToken, getToken } from '@/utils/device-token';
-import { isObjectId } from '@/utils/object-id';
 
 const SESSION_PATH = /^\/sessions\/([^/]+)/;
 

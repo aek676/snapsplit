@@ -1,6 +1,6 @@
+import { isObjectId } from '@repo/shared-types';
 import { z } from 'zod';
 import type { SessionAuth } from '@/types/session';
-import { isObjectId } from './object-id';
 
 const PREFIX = 'snapsplit.dt.';
 

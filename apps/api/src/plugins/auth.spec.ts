@@ -6,7 +6,6 @@ import { authPlugin } from './auth';
 
 const OWNER_TOKEN = 'owner-token-abc';
 const GUEST_TOKEN = 'guest-token-xyz';
-/** Well-formed id: the routes reject anything that is not an ObjectId. */
 const SESSION_ID = '507f191e810c19729de860ea';
 
 function sessionWith(participants: { token: string; isOwner: boolean }[]) {
@@ -104,7 +103,11 @@ describe('auth macro', () => {
     );
 
     expect(res.status).toBe(422);
-    expect(await res.text()).toBe('Invalid id');
+    expect(await res.json()).toMatchObject({
+      type: 'validation',
+      on: 'params',
+      property: '/sessionId',
+    });
     expect(findOne).not.toHaveBeenCalled();
   });
 
