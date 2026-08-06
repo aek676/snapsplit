@@ -11,6 +11,13 @@
         "command": "bun --watch apps/api/src/index.ts"
       }
     },
+    "start": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "bun dist/apps/api/index.js"
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
