@@ -23,7 +23,7 @@ export function LineItemRow({
 
   return (
     <li
-      className={`relative flex items-center gap-4 border-b border-border px-4 py-5 ${
+      className={`relative flex flex-col gap-2 border-b border-border px-4 py-5 sm:flex-row sm:items-center sm:gap-4 ${
         lowConfidence ? 'border-l-[3px] border-l-warning' : ''
       }`}
     >
@@ -32,26 +32,33 @@ export function LineItemRow({
           Check this
         </span>
       )}
-      <span className={`flex-1 item-name ${lowConfidence ? 'mt-3' : ''}`}>
+      <span className={`item-name sm:flex-1 ${lowConfidence ? 'mt-3' : ''}`}>
         {lineItem.name}
       </span>
-      <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[13px] font-bold text-content-secondary tabular-nums">
-        x{lineItem.quantity}
-      </span>
-      <Money
-        cents={lineItem.lineTotalCents}
-        currency={currency}
-        className="w-20 text-right price-total"
-      />
-      <Button
-        variant="ghost"
-        size="icon-lg"
-        aria-label={`Edit ${lineItem.name}`}
-        onClick={onEdit}
-      >
-        <Pencil />
-      </Button>
-      <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
+      <div className="flex items-center gap-3 sm:contents">
+        <Money
+          cents={lineItem.unitPriceCents}
+          currency={currency}
+          className="unit-meta text-content-secondary"
+        />
+        <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[13px] font-bold text-content-secondary tabular-nums">
+          x{lineItem.quantity}
+        </span>
+        <Money
+          cents={lineItem.lineTotalCents}
+          currency={currency}
+          className="ml-auto w-20 text-right price-total sm:ml-0"
+        />
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          aria-label={`Edit ${lineItem.name}`}
+          onClick={onEdit}
+        >
+          <Pencil />
+        </Button>
+        <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
+      </div>
     </li>
   );
 }
