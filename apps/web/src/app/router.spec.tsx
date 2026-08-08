@@ -81,10 +81,6 @@ describe('router', () => {
 
     expect(await screen.findByText('Review receipt')).toBeDefined();
     expect(await screen.findByText('Vino de la casa')).toBeDefined();
-    // The row must agree with formatCents, which renders the receipt Total on
-    // this same screen — separators and symbol placement included. Collapse
-    // whitespace the way testing-library's default normalizer does, since many
-    // locales separate amount and symbol with a non-breaking space.
     const unitPrice = `${formatCents(1250, 'EUR')}/unit`.replace(/\s+/g, ' ');
     expect(await screen.findByText(unitPrice)).toBeDefined();
   });
