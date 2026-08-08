@@ -2,11 +2,8 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { AddLineItemModal } from '@/features/session/line-item/components/add-line-item-modal';
-import { EditLineItemModal } from '@/features/session/line-item/components/edit-line-item-modal';
 import { LineItemRow } from '@/features/session/line-item/components/line-item-row';
-import type { LineItem, Session } from '@/types/session';
-
-type EditorState = { mode: 'add' } | { mode: 'edit'; lineItem: LineItem };
+import type { Session } from '@/types/session';
 
 interface LineItemListProps {
   session: Session;
@@ -14,7 +11,7 @@ interface LineItemListProps {
 
 export function LineItemList({ session }: LineItemListProps) {
   const sessionId = session.id;
-  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [adding, setAdding] = useState(false);
 
   return (
     <>
@@ -26,13 +23,12 @@ export function LineItemList({ session }: LineItemListProps) {
               sessionId={sessionId}
               lineItem={lineItem}
               currency={session.currency}
-              onEdit={() => setEditor({ mode: 'edit', lineItem })}
             />
           ))}
         </ul>
         <button
           type="button"
-          onClick={() => setEditor({ mode: 'add' })}
+          onClick={() => setAdding(true)}
           className="flex w-full items-center gap-2 px-4 py-5 text-primary transition-colors hover:bg-primary-tint/50 active:bg-primary-tint"
         >
           <Plus size={20} />
@@ -40,21 +36,12 @@ export function LineItemList({ session }: LineItemListProps) {
         </button>
       </div>
 
-      {editor?.mode === 'add' && (
+      {adding && (
         <AddLineItemModal
           sessionId={sessionId}
           currency={session.currency}
-          onSaved={() => setEditor(null)}
-          onCancel={() => setEditor(null)}
-        />
-      )}
-      {editor?.mode === 'edit' && (
-        <EditLineItemModal
-          sessionId={sessionId}
-          initial={editor.lineItem}
-          currency={session.currency}
-          onSaved={() => setEditor(null)}
-          onCancel={() => setEditor(null)}
+          onSaved={() => setAdding(false)}
+          onCancel={() => setAdding(false)}
         />
       )}
     </>
