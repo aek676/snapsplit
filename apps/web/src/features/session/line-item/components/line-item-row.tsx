@@ -39,9 +39,10 @@ export function LineItemRow({
         <Money
           cents={lineItem.unitPriceCents}
           currency={currency}
-          className="unit-meta text-content-secondary"
+          suffix="/U"
+          className="unit-meta text-content-secondary sm:w-24 sm:text-right"
         />
-        <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[13px] font-bold text-content-secondary tabular-nums">
+        <span className="min-w-10 rounded-full bg-surface-alt px-2 py-0.5 text-center text-[13px] leading-[18px] font-bold text-content-secondary tabular-nums">
           x{lineItem.quantity}
         </span>
         <Money
