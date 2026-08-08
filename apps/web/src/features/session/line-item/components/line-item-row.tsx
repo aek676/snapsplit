@@ -1,6 +1,7 @@
+import { Pencil } from 'lucide-react';
+import { Button } from 'shadcn-ui/button';
 import { Money } from '@/components/ui/money';
 import { DeleteLineItem } from '@/features/session/line-item/components/delete-line-item';
-import { EditLineItem } from '@/features/session/line-item/components/edit-line-item';
 import type { LineItem } from '@/types/session';
 
 export const LOW_CONFIDENCE_THRESHOLD = 0.7;
@@ -9,12 +10,14 @@ interface LineItemRowProps {
   sessionId: string;
   lineItem: LineItem;
   currency: string;
+  onEdit: () => void;
 }
 
 export function LineItemRow({
   sessionId,
   lineItem,
   currency,
+  onEdit,
 }: LineItemRowProps) {
   const lowConfidence = lineItem.aiConfidence < LOW_CONFIDENCE_THRESHOLD;
 
@@ -48,11 +51,14 @@ export function LineItemRow({
         currency={currency}
         className="shrink-0 text-right price-total"
       />
-      <EditLineItem
-        sessionId={sessionId}
-        lineItem={lineItem}
-        currency={currency}
-      />
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        aria-label={`Edit ${lineItem.name}`}
+        onClick={onEdit}
+      >
+        <Pencil />
+      </Button>
       <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
     </li>
   );
