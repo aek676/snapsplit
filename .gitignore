@@ -46,3 +46,7 @@ Thumbs.db
 # Claude Code
 .claude/worktrees
 .claude/settings.local.json
+
+# Playwright
+.playwright
+.playwright-cli

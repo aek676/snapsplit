@@ -1,8 +1,8 @@
 import { Pencil } from 'lucide-react';
 import { Button } from 'shadcn-ui/button';
+import { Money } from '@/components/ui/money';
 import { DeleteLineItem } from '@/features/session/line-item/components/delete-line-item';
 import type { LineItem } from '@/types/session';
-import { formatCents } from '@/utils/money';
 
 export const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
@@ -32,15 +32,25 @@ export function LineItemRow({
           Check this
         </span>
       )}
-      <span className={`flex-1 item-name ${lowConfidence ? 'mt-3' : ''}`}>
-        {lineItem.name}
-      </span>
-      <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[13px] font-bold text-content-secondary tabular-nums">
-        x{lineItem.quantity}
-      </span>
-      <span className="w-20 text-right price-total">
-        {formatCents(lineItem.lineTotalCents, currency)}
-      </span>
+      <div className={`min-w-0 flex-1 ${lowConfidence ? 'mt-3' : ''}`}>
+        <div className="flex items-center gap-2">
+          <span className="item-name">{lineItem.name}</span>
+          <span className="label-nav shrink-0 rounded-full bg-surface-alt px-2 py-0.5 text-content-secondary tabular-nums">
+            x{lineItem.quantity}
+          </span>
+        </div>
+        <Money
+          cents={lineItem.unitPriceCents}
+          currency={currency}
+          suffix="/unit"
+          className="mt-2 block unit-meta text-content-secondary"
+        />
+      </div>
+      <Money
+        cents={lineItem.lineTotalCents}
+        currency={currency}
+        className="shrink-0 text-right price-total"
+      />
       <Button
         variant="ghost"
         size="icon-lg"
