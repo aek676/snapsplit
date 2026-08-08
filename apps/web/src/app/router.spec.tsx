@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { routeTree } from '@/app/route-tree.gen';
 import { serve } from '@/testing/respond';
 import { setToken } from '@/utils/device-token';
+import { formatCents } from '@/utils/money';
 
 const SESSION_ID = '507f1f77bcf86cd799439011';
 
@@ -80,5 +81,7 @@ describe('router', () => {
 
     expect(await screen.findByText('Review receipt')).toBeDefined();
     expect(await screen.findByText('Vino de la casa')).toBeDefined();
+    const unitPrice = `${formatCents(1250, 'EUR')}/unit`.replace(/\s+/g, ' ');
+    expect(await screen.findByText(unitPrice)).toBeDefined();
   });
 });

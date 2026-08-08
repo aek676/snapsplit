@@ -20,7 +20,7 @@ export function LineItemRow({
 
   return (
     <li
-      className={`relative flex flex-col gap-2 border-b border-border px-4 py-5 sm:flex-row sm:items-center sm:gap-4 ${
+      className={`relative flex items-center gap-4 border-b border-border px-4 py-5 ${
         lowConfidence ? 'border-l-[3px] border-l-warning' : ''
       }`}
     >
@@ -29,31 +29,31 @@ export function LineItemRow({
           Check this
         </span>
       )}
-      <span className={`item-name sm:flex-1 ${lowConfidence ? 'mt-3' : ''}`}>
-        {lineItem.name}
-      </span>
-      <div className="flex items-center gap-3 sm:contents">
+      <div className={`min-w-0 flex-1 ${lowConfidence ? 'mt-3' : ''}`}>
+        <div className="flex items-center gap-2">
+          <span className="item-name">{lineItem.name}</span>
+          <span className="label-nav shrink-0 rounded-full bg-surface-alt px-2 py-0.5 text-content-secondary tabular-nums">
+            x{lineItem.quantity}
+          </span>
+        </div>
         <Money
           cents={lineItem.unitPriceCents}
           currency={currency}
-          suffix="/U"
-          className="unit-meta text-content-secondary sm:w-24 sm:text-right"
+          suffix="/unit"
+          className="mt-2 block unit-meta text-content-secondary"
         />
-        <span className="min-w-10 rounded-full bg-surface-alt px-2 py-0.5 text-center text-[13px] leading-[18px] font-bold text-content-secondary tabular-nums">
-          x{lineItem.quantity}
-        </span>
-        <Money
-          cents={lineItem.lineTotalCents}
-          currency={currency}
-          className="ml-auto w-20 text-right price-total sm:ml-0"
-        />
-        <EditLineItem
-          sessionId={sessionId}
-          lineItem={lineItem}
-          currency={currency}
-        />
-        <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
       </div>
+      <Money
+        cents={lineItem.lineTotalCents}
+        currency={currency}
+        className="shrink-0 text-right price-total"
+      />
+      <EditLineItem
+        sessionId={sessionId}
+        lineItem={lineItem}
+        currency={currency}
+      />
+      <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
     </li>
   );
 }
