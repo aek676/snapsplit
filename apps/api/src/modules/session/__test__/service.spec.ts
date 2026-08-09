@@ -8,12 +8,12 @@ import {
   spyOn,
 } from 'bun:test';
 import type { HydratedDocument } from 'mongoose';
-import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
-import { Session } from '../../schemas';
-import type { ReceiptStorage } from '../../storage/receipt-storage';
-import { hashToken } from '../auth/service';
-import type { SessionModel } from './model';
-import { buildDraftPayload, SessionService, toSessionView } from './service';
+import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
+import { Session } from '../../../schemas';
+import type { ReceiptStorage } from '../../../storage/receipt-storage';
+import { hashToken } from '../../auth/service';
+import type { SessionModel } from '../model';
+import { buildDraftPayload, SessionService, toSessionView } from '../service';
 
 const deviceTokenHash = hashToken('device-token-abc');
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { generateToken, hashToken } from './service';
+import { generateToken, hashToken } from '../service';
 
 describe('generateToken', () => {
   it('returns 32 bytes of entropy encoded as base64url', () => {

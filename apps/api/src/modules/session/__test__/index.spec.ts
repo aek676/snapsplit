@@ -7,12 +7,12 @@ import {
   mock,
   spyOn,
 } from 'bun:test';
-import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
-import { Session } from '../../schemas';
-import type { ReceiptStorage } from '../../storage/receipt-storage';
-import { hashToken } from '../auth/service';
-import { createSessionModule } from './index';
-import { buildDraftPayload, SessionService } from './service';
+import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
+import { Session } from '../../../schemas';
+import type { ReceiptStorage } from '../../../storage/receipt-storage';
+import { hashToken } from '../../auth/service';
+import { createSessionModule } from '../index';
+import { buildDraftPayload, SessionService } from '../service';
 
 const extracted: ExtractedReceipt = {
   merchant: 'Bar Paco',
