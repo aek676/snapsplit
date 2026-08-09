@@ -46,6 +46,20 @@ export function createSessionModule(service: SessionService) {
         tags: ['Sessions'],
       },
     })
+    .delete('/:sessionId', ({ session }) => service.deleteSession(session), {
+      owner: true,
+      params: SessionModel.sessionParams,
+      response: {
+        204: SessionModel.noContent,
+        401: AuthModel.unauthorized,
+        403: AuthModel.forbidden,
+        500: SessionModel.internalError,
+      },
+      detail: {
+        summary: 'Delete a session and its receipt image',
+        tags: ['Sessions'],
+      },
+    })
     .post(
       '/:sessionId/line-items',
       ({ session, body }) => service.addLineItem(session, body),

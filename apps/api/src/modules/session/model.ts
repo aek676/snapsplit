@@ -46,6 +46,7 @@ export const SessionModel = {
     sessionView,
     t.Object({ auth: authView }),
   ]),
+  noContent: t.Void(),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
   internalError: t.Literal('Unexpected server error'),

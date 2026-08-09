@@ -4,7 +4,11 @@ import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { type LineItem, type Participant, Session } from '../../schemas';
 import type { ObjectStorage } from '../../storage/object-storage';
 import { generateToken, hashToken } from '../auth/service';
-import { newReceiptFileId, receiptUrl } from '../receipt/service';
+import {
+  newReceiptFileId,
+  receiptFileId,
+  receiptUrl,
+} from '../receipt/service';
 import { SessionModel } from './model';
 
 type LineItemInput = Pick<
@@ -107,6 +111,15 @@ export class SessionService {
       console.error('Failed to persist draft session:', error);
       return status(500, SessionModel.draftCreationFailed.const);
     }
+  }
+
+  async deleteSession(session: HydratedDocument<Session>) {
+    await session.deleteOne();
+
+    const fileId = receiptFileId(session.receiptImageUrl);
+    if (fileId) await this.storage.delete(fileId).catch(() => {});
+
+    return status(204, undefined);
   }
 
   async addLineItem(

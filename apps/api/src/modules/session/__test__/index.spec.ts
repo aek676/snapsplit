@@ -377,6 +377,96 @@ describe('GET /sessions/:sessionId', () => {
   });
 });
 
+describe('DELETE /sessions/:sessionId', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'deleteOne').mockImplementation((async () => ({
+      deletedCount: 1,
+    })) as never);
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('returns 204 with an empty body and drops the receipt image', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const storage = fakeStorage();
+    const app = moduleWith(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    );
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe('');
+    expect(Session.prototype.deleteOne).toHaveBeenCalledTimes(1);
+    expect(storage.delete).toHaveBeenCalledWith('abc.jpg');
+  });
+
+  it('returns 403 for a guest token and keeps the session', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, {
+        method: 'DELETE',
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
+    expect(Session.prototype.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 without an Authorization header', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, { method: 'DELETE', token: null }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe('Unauthorized');
+    expect(Session.prototype.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when the token belongs to another session', async () => {
+    mockLookup(draftSession());
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/507f1f77bcf86cd799439011', { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
+    expect(Session.prototype.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('maps an unexpected error to 500 via onError', async () => {
+    spyOn(Session, 'findOne').mockImplementation((() => {
+      throw new Error('mongo down');
+    }) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/507f191e810c19729de860ea', { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('Unexpected server error');
+  });
+});
+
 describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});

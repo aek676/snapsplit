@@ -238,6 +238,68 @@ function lineItemService() {
   );
 }
 
+describe('SessionService.deleteSession', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('deletes the document and its stored receipt image', async () => {
+    const deleteOne = spyOn(Session.prototype, 'deleteOne').mockImplementation(
+      (async () => ({ deletedCount: 1 })) as never,
+    );
+    const storage = fakeStorage();
+    const session = draftSession();
+
+    const result = await new SessionService(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    ).deleteSession(session);
+
+    expect(deleteOne).toHaveBeenCalledTimes(1);
+    expect(storage.delete).toHaveBeenCalledWith('abc.jpg');
+    expect(result).toMatchObject({ code: 204 });
+  });
+
+  it('skips the storage call when there is no receipt image', async () => {
+    spyOn(Session.prototype, 'deleteOne').mockImplementation((async () => ({
+      deletedCount: 1,
+    })) as never);
+    const storage = fakeStorage();
+    const session = draftSession();
+    session.receiptImageUrl = '';
+
+    await new SessionService(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    ).deleteSession(session);
+
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
+
+  it('still succeeds when deleting the stored image fails', async () => {
+    const deleteOne = spyOn(Session.prototype, 'deleteOne').mockImplementation(
+      (async () => ({ deletedCount: 1 })) as never,
+    );
+    const storage = fakeStorage({
+      delete: mock(async () => {
+        throw new Error('gcs down');
+      }),
+    });
+
+    const result = await new SessionService(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    ).deleteSession(draftSession());
+
+    expect(deleteOne).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ code: 204 });
+  });
+});
+
 describe('SessionService.addLineItem', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
