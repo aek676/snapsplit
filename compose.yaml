@@ -18,6 +18,7 @@ services:
       - 4443:4443
     volumes:
       - fake-gcs-data:/storage
+      - ./.dev/gcs:/data
 
   mongo-express:
     image: mongo-express
