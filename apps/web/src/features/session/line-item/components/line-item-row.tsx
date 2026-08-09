@@ -20,8 +20,8 @@ export function LineItemRow({
 
   return (
     <li
-      className={`relative flex items-center gap-4 border-b border-border px-4 py-5 ${
-        lowConfidence ? 'border-l-[3px] border-l-warning' : ''
+      className={`relative flex items-center gap-2 border-b border-border px-4 pb-5 ${
+        lowConfidence ? 'border-l-[3px] border-l-warning pt-8' : 'pt-5'
       }`}
     >
       {lowConfidence && (
@@ -29,31 +29,31 @@ export function LineItemRow({
           Check this
         </span>
       )}
-      <div className={`min-w-0 flex-1 ${lowConfidence ? 'mt-3' : ''}`}>
-        <div className="flex items-center gap-2">
-          <span className="item-name">{lineItem.name}</span>
-          <span className="label-nav shrink-0 rounded-full bg-surface-alt px-2 py-0.5 text-content-secondary tabular-nums">
-            x{lineItem.quantity}
-          </span>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="item-name wrap-anywhere">{lineItem.name}</span>
         <Money
           cents={lineItem.unitPriceCents}
           currency={currency}
           suffix="/unit"
-          className="mt-2 block unit-meta text-content-secondary"
+          className="unit-meta text-content-secondary"
         />
       </div>
+      <span className="label-nav min-w-9 shrink-0 rounded-full bg-surface-alt px-2 py-0.5 text-center text-content-secondary tabular-nums">
+        x{lineItem.quantity}
+      </span>
       <Money
         cents={lineItem.lineTotalCents}
         currency={currency}
-        className="shrink-0 text-right price-total"
+        className="w-16 shrink-0 text-right price-total"
       />
-      <EditLineItem
-        sessionId={sessionId}
-        lineItem={lineItem}
-        currency={currency}
-      />
-      <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
+      <div className="flex sm:gap-4">
+        <EditLineItem
+          sessionId={sessionId}
+          lineItem={lineItem}
+          currency={currency}
+        />
+        <DeleteLineItem sessionId={sessionId} lineItem={lineItem} />
+      </div>
     </li>
   );
 }
