@@ -10,7 +10,7 @@ import {
 import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
 import { Session } from '../../../schemas';
-import type { ReceiptStorage } from '../../../storage/receipt-storage';
+import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
 import type { SessionModel } from '../model';
 import { buildDraftPayload, SessionService, toSessionView } from '../service';
@@ -123,13 +123,21 @@ function imageBody(
   return { image: new File([bytes], 'receipt.jpg', { type }) };
 }
 
-function fakeStorage(overrides: Partial<ReceiptStorage> = {}): ReceiptStorage {
+function fakeStorage(overrides: Partial<ObjectStorage> = {}): ObjectStorage {
   return {
-    save: mock(async () => ({ id: 'stored-123' })),
+    save: mock(async () => {}),
     get: mock(async () => null),
     delete: mock(async () => {}),
     ...overrides,
   };
+}
+
+function saveCall(storage: ObjectStorage) {
+  return (storage.save as ReturnType<typeof mock>).mock.calls[0] as [
+    string,
+    Uint8Array,
+    string,
+  ];
 }
 
 describe('SessionService.createDraftFromImage', () => {
@@ -162,18 +170,16 @@ describe('SessionService.createDraftFromImage', () => {
     expect(extract.mock.calls[0][0]).toEqual(bytes);
     expect(extract.mock.calls[0][1]).toBe('image/png');
     expect(storage.save).toHaveBeenCalledTimes(1);
-    expect((storage.save as ReturnType<typeof mock>).mock.calls[0][0]).toEqual(
-      bytes,
-    );
-    expect((storage.save as ReturnType<typeof mock>).mock.calls[0][1]).toBe(
-      'image/png',
-    );
+    const [key, storedBytes, storedMediaType] = saveCall(storage);
+    expect(storedBytes).toEqual(bytes);
+    expect(storedMediaType).toBe('image/png');
+    expect(key).toMatch(/\.png$/);
 
     // The happy path returns the serialized session view, not a status error.
     expect(result).toMatchObject({
       status: 'draft',
       merchant: 'Bar Paco',
-      receiptImageUrl: '/receipts/stored-123',
+      receiptImageUrl: `/receipts/${key}`,
     });
     const created = result as SessionModel['draftSessionCreatedResponse'];
     expect(created.lineItems).toHaveLength(2);
@@ -215,8 +221,7 @@ describe('SessionService.createDraftFromImage', () => {
       code: 500,
       response: 'Failed to create draft session',
     });
-    // The orphaned upload is cleaned up so storage doesn't leak.
-    expect(storage.delete).toHaveBeenCalledWith('stored-123');
+    expect(storage.delete).toHaveBeenCalledWith(saveCall(storage)[0]);
   });
 });
 

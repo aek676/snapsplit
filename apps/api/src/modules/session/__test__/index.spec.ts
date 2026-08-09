@@ -9,7 +9,7 @@ import {
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
 import { Session } from '../../../schemas';
-import type { ReceiptStorage } from '../../../storage/receipt-storage';
+import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
 import { createSessionModule } from '../index';
 import { buildDraftPayload, SessionService } from '../service';
@@ -30,13 +30,18 @@ const extracted: ExtractedReceipt = {
   ],
 };
 
-function fakeStorage(overrides: Partial<ReceiptStorage> = {}): ReceiptStorage {
+function fakeStorage(overrides: Partial<ObjectStorage> = {}): ObjectStorage {
   return {
-    save: mock(async () => ({ id: 'stored-123' })),
+    save: mock(async () => {}),
     get: mock(async () => null),
     delete: mock(async () => {}),
     ...overrides,
   };
+}
+
+/** The key the service minted for the one image it stored. */
+function storedKey(storage: ObjectStorage) {
+  return (storage.save as ReturnType<typeof mock>).mock.calls[0][0] as string;
 }
 
 function moduleWith(extract: ExtractReceipt, storage = fakeStorage()) {
@@ -77,7 +82,11 @@ describe('POST /sessions/analyze', () => {
   });
 
   it('returns 200 with the serialized draft view', async () => {
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+    const storage = fakeStorage();
+    const app = moduleWith(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    );
 
     const res = await app.handle(analyzeRequest(imageFile('image/png')));
 
@@ -85,8 +94,9 @@ describe('POST /sessions/analyze', () => {
     expect(await res.json()).toMatchObject({
       status: 'draft',
       merchant: 'Bar Paco',
-      receiptImageUrl: '/receipts/stored-123',
+      receiptImageUrl: `/receipts/${storedKey(storage)}`,
     });
+    expect(storedKey(storage)).toMatch(/\.png$/);
   });
 
   it('returns 422 when the image field is missing', async () => {
@@ -147,7 +157,7 @@ describe('POST /sessions/analyze', () => {
 
     expect(res.status).toBe(500);
     expect(await res.text()).toBe('Failed to create draft session');
-    expect(storage.delete).toHaveBeenCalledWith('stored-123');
+    expect(storage.delete).toHaveBeenCalledWith(storedKey(storage));
   });
 });
 
