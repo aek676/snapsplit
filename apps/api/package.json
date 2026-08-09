@@ -7,10 +7,6 @@
     ".": {
       "types": "./src/app.ts",
       "default": "./src/app.ts"
-    },
-    "./constants": {
-      "types": "./src/constants.ts",
-      "default": "./src/constants.ts"
     }
   }
 }
