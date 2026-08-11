@@ -41,7 +41,6 @@ function stored(sessionId: string) {
   return Session.collection.findOne({ _id: new Types.ObjectId(sessionId) });
 }
 
-/** The storage key the session points at, e.g. `/receipts/x.png` -> `x.png`. */
 async function receiptKey(sessionId: string) {
   const raw = await stored(sessionId);
   const key = receiptFileId(raw?.receiptImageUrl ?? '');
@@ -55,7 +54,6 @@ function receiptExists(key: string) {
     .then(([exists]) => exists);
 }
 
-/** `/analyze` only ever creates the owner, so a guest has to be seeded. */
 function addGuest(sessionId: string) {
   return Session.updateOne(
     { _id: new Types.ObjectId(sessionId) },

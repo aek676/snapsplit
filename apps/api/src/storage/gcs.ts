@@ -35,10 +35,6 @@ export class GcsObjectStorage implements ObjectStorage {
   }
 
   async save(key: string, bytes: Uint8Array, mediaType: string): Promise<void> {
-    // Receipts are capped well under 10MB and already sit in memory, so a
-    // single-request upload beats opening a resumable session for them. It also
-    // keeps the content type on the same request, which the emulator the
-    // integration tests run against only honours in this mode.
     await this.bucket()
       .file(this.objectName(key))
       .save(Buffer.from(bytes), { contentType: mediaType, resumable: false });

@@ -13,10 +13,8 @@ const STARTUP_TIMEOUT_MS = 180_000;
 
 const DATABASE_NAME = 'snapsplit-test';
 
-/** The emulator never seeds buckets on its own, so the setup creates this one. */
 export const TEST_BUCKET = 'snapsplit-test-receipts';
 
-/** Mirrors the prefix `createReceiptStorage` puts every receipt under. */
 const RECEIPT_PREFIX = 'receipts';
 
 const GCS_PORT = 4443;
@@ -25,7 +23,6 @@ let mongoContainer: StartedMongoDBContainer;
 let gcsContainer: StartedTestContainer;
 let gcsClient: Storage;
 
-/** `http://host:port` of the emulator, with the port Docker happened to pick. */
 export let gcsEndpoint: string;
 
 beforeAll(
@@ -66,11 +63,6 @@ afterAll(async () => {
   await Promise.all([mongoContainer?.stop(), gcsContainer?.stop()]);
 });
 
-/**
- * The emulator hands out download URLs built from the port it was told about,
- * which is not the one Docker mapped. Announcing the real one keeps
- * `file.download()` pointed at a reachable address.
- */
 async function announceExternalUrl() {
   const res = await fetch(`${gcsEndpoint}/_internal/config`, {
     method: 'PUT',
@@ -80,7 +72,6 @@ async function announceExternalUrl() {
   if (!res.ok) throw new Error(`fake-gcs config rejected: ${res.status}`);
 }
 
-/** The container answers a moment after its port opens, so keep knocking. */
 async function startEmulatorBucket() {
   let lastError: unknown;
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -109,13 +100,6 @@ export async function resetBucket() {
   await gcsClient?.bucket(TEST_BUCKET).deleteFiles({ force: true });
 }
 
-/**
- * The same storage the app builds in production, pointed at the emulator — so
- * the tests exercise the real `GcsObjectStorage`, prefix and all.
- *
- * Specs build their module at import time, before `beforeAll` knows which port
- * Docker picked, so the real storage is resolved on first use instead.
- */
 export function testStorage(): ObjectStorage {
   let delegate: ObjectStorage | undefined;
   const resolve = () => {
@@ -134,7 +118,6 @@ export function testStorage(): ObjectStorage {
   };
 }
 
-/** Raw handle on a stored receipt, for assertions the interface cannot make. */
 export function bucketFile(key: string) {
   return gcsClient.bucket(TEST_BUCKET).file(`${RECEIPT_PREFIX}/${key}`);
 }
