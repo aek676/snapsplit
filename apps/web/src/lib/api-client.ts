@@ -5,37 +5,42 @@ import { env } from '@/config/env';
 import { DeviceTokenStorageError } from '@/utils/device-token';
 import { authHeader, expireSession, persistAuth } from './auth';
 
+const NETWORK_ERROR = "We couldn't reach the server. Check your connection.";
+
 export const api: Treaty.Create<App> = treaty<App>(env.apiUrl, {
+  fetcher,
   headers: (path) => authHeader(path),
   async onResponse(response) {
     if (response.ok) {
       if (await persistAuth(response)) return;
 
       const error = new DeviceTokenStorageError();
-      toast.add({ type: 'error', title: 'Error', description: error.message });
+      report(error.message);
       throw error;
     }
 
     if (response.status === 401 && expireSession(response.url)) return;
 
-    toast.add({
-      type: 'error',
-      title: 'Error',
-      description: await errorMessage(response),
-    });
+    report(await response.clone().text());
   },
 });
 
-async function errorMessage(response: Response): Promise<string> {
+async function fetcher(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
   try {
-    const body = await response.clone().json();
+    return await fetch(input, init);
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError'))
+      report(NETWORK_ERROR);
 
-    return typeof body === 'string'
-      ? body
-      : (body?.message ?? body?.value?.message ?? response.statusText);
-  } catch {
-    return response.statusText;
+    throw error;
   }
+}
+
+function report(description: string): void {
+  toast.add({ type: 'error', title: 'Error', description });
 }
 
 export function apiError(error: unknown, message: string): Error {
