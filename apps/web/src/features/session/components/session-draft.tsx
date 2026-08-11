@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Camera,
   CheckCircle2,
-  ChevronLeft,
   Link as LinkIcon,
 } from 'lucide-react';
 import { Button } from 'shadcn-ui/button';
