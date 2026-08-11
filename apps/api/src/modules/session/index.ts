@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
-import { gcsReceiptStorage } from '../../storage/gcs';
+import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
 import { SessionModel } from './model';
 import { SessionService, toSessionView } from './service';
@@ -43,6 +43,20 @@ export function createSessionModule(service: SessionService) {
       },
       detail: {
         summary: 'Get a session by id',
+        tags: ['Sessions'],
+      },
+    })
+    .delete('/:sessionId', ({ session }) => service.deleteSession(session), {
+      owner: true,
+      params: SessionModel.sessionParams,
+      response: {
+        204: SessionModel.noContent,
+        401: AuthModel.unauthorized,
+        403: AuthModel.forbidden,
+        500: SessionModel.internalError,
+      },
+      detail: {
+        summary: 'Delete a session and its receipt image',
         tags: ['Sessions'],
       },
     })
@@ -112,5 +126,5 @@ export function createSessionModule(service: SessionService) {
 }
 
 export const sessionModule = createSessionModule(
-  new SessionService(extractReceipt, gcsReceiptStorage),
+  new SessionService(extractReceipt, receiptStorage),
 );

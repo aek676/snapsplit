@@ -2,8 +2,13 @@ import { status } from 'elysia';
 import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { type LineItem, type Participant, Session } from '../../schemas';
-import type { ReceiptStorage } from '../../storage/receipt-storage';
+import type { ObjectStorage } from '../../storage/object-storage';
 import { generateToken, hashToken } from '../auth/service';
+import {
+  newReceiptFileId,
+  receiptFileId,
+  receiptUrl,
+} from '../receipt/service';
 import { SessionModel } from './model';
 
 type LineItemInput = Pick<
@@ -71,7 +76,7 @@ export function toSessionView(
 export class SessionService {
   constructor(
     private readonly extract: ExtractReceipt,
-    private readonly storage: ReceiptStorage,
+    private readonly storage: ObjectStorage,
   ) {}
 
   async createDraftFromImage({ image }: SessionModel['analyzeBody']) {
@@ -85,14 +90,15 @@ export class SessionService {
       return status(502, SessionModel.analysisFailed.const);
     }
 
-    const { id } = await this.storage.save(bytes, image.type);
+    const fileId = newReceiptFileId(image.type);
+    await this.storage.save(fileId, bytes, image.type);
     try {
       const token = generateToken();
       const deviceTokenHash = hashToken(token);
       const payload = buildDraftPayload(
         deviceTokenHash,
         extracted,
-        `/receipts/${id}`,
+        receiptUrl(fileId),
       );
       const session = await new Session(payload).save();
       const [owner] = session.participants;
@@ -101,10 +107,19 @@ export class SessionService {
         auth: { participantId: String(owner._id), token },
       };
     } catch (error) {
-      await this.storage.delete(id).catch(() => {});
+      await this.storage.delete(fileId).catch(() => {});
       console.error('Failed to persist draft session:', error);
       return status(500, SessionModel.draftCreationFailed.const);
     }
+  }
+
+  async deleteSession(session: HydratedDocument<Session>) {
+    await session.deleteOne();
+
+    const fileId = receiptFileId(session.receiptImageUrl);
+    if (fileId) await this.storage.delete(fileId).catch(() => {});
+
+    return status(204, undefined);
   }
 
   async addLineItem(

@@ -1,5 +1,5 @@
 import type { ExtractedReceipt, ExtractReceipt } from '../src/ai/receipt';
-import type { ReceiptStorage } from '../src/storage/receipt-storage';
+import type { ObjectStorage } from '../src/storage/object-storage';
 
 export const extracted: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -38,10 +38,9 @@ export function analyzeRequest(file = imageFile()) {
 
 export const fakeExtract: ExtractReceipt = async () => extracted;
 
-export function fakeStorage(): ReceiptStorage {
-  let saved = 0;
+export function fakeStorage(): ObjectStorage {
   return {
-    save: async () => ({ id: `stored-${++saved}.png` }),
+    save: async () => {},
     get: async () => null,
     delete: async () => {},
   };

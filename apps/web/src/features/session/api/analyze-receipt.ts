@@ -1,4 +1,4 @@
-import { SUPPORTED_IMAGE_MIME_TYPES } from '@repo/api/constants';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@repo/shared-types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { api, apiError } from '@/lib/api-client';

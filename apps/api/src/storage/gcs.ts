@@ -1,57 +1,47 @@
-import { randomUUID } from 'node:crypto';
 import { type Bucket, Storage } from '@google-cloud/storage';
-import {
-  EXT_BY_MEDIA_TYPE,
-  type ReceiptStorage,
-  type SupportedImageMimeType,
-} from './receipt-storage';
+import type { ObjectStorage } from './object-storage';
 
-const PREFIX = 'receipts';
-
-export function extFromMediaType(mediaType: string): string {
-  return EXT_BY_MEDIA_TYPE[mediaType as SupportedImageMimeType] ?? 'bin';
+export interface GcsObjectStorageOptions {
+  prefix: string;
+  bucketName?: string;
+  apiEndpoint?: string;
 }
 
-export class GcsReceiptStorage implements ReceiptStorage {
+export class GcsObjectStorage implements ObjectStorage {
+  private readonly prefix: string;
+  private readonly bucketName?: string;
+  private readonly apiEndpoint?: string;
   private bucketInstance?: Bucket;
-  private ensured = false;
 
-  constructor(private readonly bucketName = Bun.env.GCS_BUCKET) {}
+  constructor({ prefix, bucketName, apiEndpoint }: GcsObjectStorageOptions) {
+    this.prefix = prefix;
+    this.bucketName = bucketName;
+    this.apiEndpoint = apiEndpoint;
+  }
 
-  private get isEmulator(): boolean {
-    return Boolean(Bun.env.GCS_EMULATOR_HOST);
+  private objectName(key: string): string {
+    return this.prefix ? `${this.prefix}/${key}` : key;
   }
 
   private bucket(): Bucket {
     if (!this.bucketInstance) {
       if (!this.bucketName) throw new Error('GCS_BUCKET is not set');
-      const emulator = Bun.env.GCS_EMULATOR_HOST;
-      const storage = emulator
-        ? new Storage({ apiEndpoint: emulator, projectId: 'dev' })
+      const storage = this.apiEndpoint
+        ? new Storage({ apiEndpoint: this.apiEndpoint, projectId: 'dev' })
         : new Storage();
       this.bucketInstance = storage.bucket(this.bucketName);
     }
     return this.bucketInstance;
   }
 
-  private async ensureBucket(): Promise<void> {
-    if (!this.isEmulator || this.ensured) return;
-    const [exists] = await this.bucket().exists();
-    if (!exists) await this.bucket().create();
-    this.ensured = true;
-  }
-
-  async save(bytes: Uint8Array, mediaType: string): Promise<{ id: string }> {
-    await this.ensureBucket();
-    const id = `${randomUUID()}.${extFromMediaType(mediaType)}`;
+  async save(key: string, bytes: Uint8Array, mediaType: string): Promise<void> {
     await this.bucket()
-      .file(`${PREFIX}/${id}`)
+      .file(this.objectName(key))
       .save(Buffer.from(bytes), { contentType: mediaType });
-    return { id };
   }
 
-  async get(id: string): Promise<{ bytes: Buffer; mediaType: string } | null> {
-    const file = this.bucket().file(`${PREFIX}/${id}`);
+  async get(key: string): Promise<{ bytes: Buffer; mediaType: string } | null> {
+    const file = this.bucket().file(this.objectName(key));
     const [exists] = await file.exists();
     if (!exists) return null;
     const [metadata] = await file.getMetadata();
@@ -62,11 +52,9 @@ export class GcsReceiptStorage implements ReceiptStorage {
     };
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(key: string): Promise<void> {
     await this.bucket()
-      .file(`${PREFIX}/${id}`)
+      .file(this.objectName(key))
       .delete({ ignoreNotFound: true });
   }
 }
-
-export const gcsReceiptStorage = new GcsReceiptStorage();

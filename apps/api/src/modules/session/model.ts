@@ -1,6 +1,6 @@
 import { t } from 'elysia';
-import { objectId } from '../../model';
-import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/receipt-storage';
+import { objectId } from '../../common/model';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
 
 const lineItemView = t.Object({
   id: t.String(),
@@ -46,6 +46,7 @@ export const SessionModel = {
     sessionView,
     t.Object({ auth: authView }),
   ]),
+  noContent: t.Void(),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
   internalError: t.Literal('Unexpected server error'),

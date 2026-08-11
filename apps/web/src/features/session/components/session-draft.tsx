@@ -1,14 +1,13 @@
 import { useForm } from '@tanstack/react-form';
-import { Link } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import {
   AlertTriangle,
   Camera,
   CheckCircle2,
-  ChevronLeft,
   Link as LinkIcon,
 } from 'lucide-react';
-import { Button, buttonVariants } from 'shadcn-ui/button';
-import { cn } from 'shadcn-ui-utils/cn';
+import { Button } from 'shadcn-ui/button';
+import { useDeleteSession } from '@/features/session/api/delete-session';
 import { LOW_CONFIDENCE_THRESHOLD } from '@/features/session/line-item/components/line-item-row';
 import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
@@ -39,13 +38,6 @@ function ReviewHeader({ session }: { session: Session }) {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background px-5">
-      <Link
-        to="/"
-        aria-label="Back to home"
-        className="flex h-11 w-11 items-center justify-center rounded-full text-content-secondary transition-colors hover:bg-primary-tint"
-      >
-        <ChevronLeft size={24} />
-      </Link>
       <div>
         <h1 className="screen-title">Review receipt</h1>
         {subtitle && (
@@ -121,20 +113,34 @@ function ConfirmButton({ session }: { session: Session }) {
   );
 }
 
+function RetakePhotoButton({ session }: { session: Session }) {
+  const navigate = useNavigate();
+  const deleteSession = useDeleteSession({ sessionId: session.id });
+
+  return (
+    <Button
+      variant="secondary"
+      size="xl"
+      className="w-[40%] flex-none"
+      disabled={deleteSession.isPending}
+      onClick={() =>
+        deleteSession.mutate(
+          { sessionId: session.id },
+          { onSettled: () => navigate({ to: '/' }) },
+        )
+      }
+    >
+      <Camera size={20} />
+      Retake photo
+    </Button>
+  );
+}
+
 function ReviewFooter({ session }: { session: Session }) {
   return (
     <div className="fixed bottom-0 left-0 z-40 w-full border-t border-border bg-surface shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
       <div className="mx-auto flex min-h-20 w-full max-w-160 items-center gap-3 px-5 py-4">
-        <Link
-          to="/"
-          className={cn(
-            buttonVariants({ variant: 'secondary', size: 'xl' }),
-            'w-[40%] flex-none',
-          )}
-        >
-          <Camera size={20} />
-          Retake photo
-        </Link>
+        <RetakePhotoButton session={session} />
         <ConfirmButton session={session} />
       </div>
     </div>

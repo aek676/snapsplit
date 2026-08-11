@@ -9,7 +9,7 @@ import {
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
 import { Session } from '../../../schemas';
-import type { ReceiptStorage } from '../../../storage/receipt-storage';
+import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
 import { createSessionModule } from '../index';
 import { buildDraftPayload, SessionService } from '../service';
@@ -30,13 +30,18 @@ const extracted: ExtractedReceipt = {
   ],
 };
 
-function fakeStorage(overrides: Partial<ReceiptStorage> = {}): ReceiptStorage {
+function fakeStorage(overrides: Partial<ObjectStorage> = {}): ObjectStorage {
   return {
-    save: mock(async () => ({ id: 'stored-123' })),
+    save: mock(async () => {}),
     get: mock(async () => null),
     delete: mock(async () => {}),
     ...overrides,
   };
+}
+
+/** The key the service minted for the one image it stored. */
+function storedKey(storage: ObjectStorage) {
+  return (storage.save as ReturnType<typeof mock>).mock.calls[0][0] as string;
 }
 
 function moduleWith(extract: ExtractReceipt, storage = fakeStorage()) {
@@ -77,7 +82,11 @@ describe('POST /sessions/analyze', () => {
   });
 
   it('returns 200 with the serialized draft view', async () => {
-    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+    const storage = fakeStorage();
+    const app = moduleWith(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    );
 
     const res = await app.handle(analyzeRequest(imageFile('image/png')));
 
@@ -85,8 +94,9 @@ describe('POST /sessions/analyze', () => {
     expect(await res.json()).toMatchObject({
       status: 'draft',
       merchant: 'Bar Paco',
-      receiptImageUrl: '/receipts/stored-123',
+      receiptImageUrl: `/receipts/${storedKey(storage)}`,
     });
+    expect(storedKey(storage)).toMatch(/\.png$/);
   });
 
   it('returns 422 when the image field is missing', async () => {
@@ -147,7 +157,7 @@ describe('POST /sessions/analyze', () => {
 
     expect(res.status).toBe(500);
     expect(await res.text()).toBe('Failed to create draft session');
-    expect(storage.delete).toHaveBeenCalledWith('stored-123');
+    expect(storage.delete).toHaveBeenCalledWith(storedKey(storage));
   });
 });
 
@@ -364,6 +374,96 @@ describe('GET /sessions/:sessionId', () => {
     );
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe('DELETE /sessions/:sessionId', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'deleteOne').mockImplementation((async () => ({
+      deletedCount: 1,
+    })) as never);
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('returns 204 with an empty body and drops the receipt image', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const storage = fakeStorage();
+    const app = moduleWith(
+      mock<ExtractReceipt>(async () => extracted),
+      storage,
+    );
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe('');
+    expect(Session.prototype.deleteOne).toHaveBeenCalledTimes(1);
+    expect(storage.delete).toHaveBeenCalledWith('abc.jpg');
+  });
+
+  it('returns 403 for a guest token and keeps the session', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, {
+        method: 'DELETE',
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
+    expect(Session.prototype.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 without an Authorization header', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, { method: 'DELETE', token: null }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe('Unauthorized');
+    expect(Session.prototype.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when the token belongs to another session', async () => {
+    mockLookup(draftSession());
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/507f1f77bcf86cd799439011', { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('Forbidden');
+    expect(Session.prototype.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('maps an unexpected error to 500 via onError', async () => {
+    spyOn(Session, 'findOne').mockImplementation((() => {
+      throw new Error('mongo down');
+    }) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/507f191e810c19729de860ea', { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('Unexpected server error');
   });
 });
 
