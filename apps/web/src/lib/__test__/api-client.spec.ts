@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api-client';
-import { serve } from '@/testing/respond';
+import { failToConnect, serve } from '@/testing/respond';
 import {
   DeviceTokenStorageError,
   getToken,
@@ -66,14 +66,72 @@ describe('api client', () => {
     );
   });
 
-  it('reports the message of any other failure', async () => {
+  it('reports the literal the API sends as plain text', async () => {
+    serve(404, 'Line item not found');
+
+    await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ description: 'Line item not found' }),
+    );
+  });
+
+  it('reports a proxy error page as it comes', async () => {
+    const page = '<html><body>Bad Gateway</body></html>';
+    serve(502, page);
+
+    await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ description: page }),
+    );
+  });
+
+  it('reports a validation failure as it comes', async () => {
+    const body = {
+      type: 'validation',
+      on: 'body',
+      property: '/image',
+      message: 'Expected required property',
+    };
+    serve(422, body);
+
+    await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ description: JSON.stringify(body) }),
+    );
+  });
+
+  it('reports a failure to reach the server', async () => {
+    failToConnect();
+
+    const { error } = await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(error?.status).toBe(503);
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "We couldn't reach the server. Check your connection.",
+      }),
+    );
+  });
+
+  it('says nothing when the request was aborted', async () => {
+    failToConnect(new DOMException('Aborted', 'AbortError'));
+
+    await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(toastAdd).not.toHaveBeenCalled();
+  });
+
+  it('reports the body of any other failure', async () => {
     serve(500, { message: 'Something broke' });
 
     await api.sessions({ sessionId: SESSION_ID }).get();
 
     expect(getToken(SESSION_ID)).toEqual(auth);
     expect(toastAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ description: 'Something broke' }),
+      expect.objectContaining({ description: '{"message":"Something broke"}' }),
     );
   });
 
