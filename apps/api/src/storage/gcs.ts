@@ -37,7 +37,7 @@ export class GcsObjectStorage implements ObjectStorage {
   async save(key: string, bytes: Uint8Array, mediaType: string): Promise<void> {
     await this.bucket()
       .file(this.objectName(key))
-      .save(Buffer.from(bytes), { contentType: mediaType });
+      .save(Buffer.from(bytes), { contentType: mediaType, resumable: false });
   }
 
   async get(key: string): Promise<{ bytes: Buffer; mediaType: string } | null> {

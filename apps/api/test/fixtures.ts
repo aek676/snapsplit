@@ -1,5 +1,4 @@
 import type { ExtractedReceipt, ExtractReceipt } from '../src/ai/receipt';
-import type { ObjectStorage } from '../src/storage/object-storage';
 
 export const extracted: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -17,7 +16,7 @@ export const extracted: ExtractedReceipt = {
   ],
 };
 
-const PNG_BYTES = Uint8Array.from(
+export const receiptBytes = Uint8Array.from(
   Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     'base64',
@@ -25,7 +24,7 @@ const PNG_BYTES = Uint8Array.from(
 );
 
 export const imageFile = (type = 'image/png') =>
-  new File([PNG_BYTES], 'receipt.png', { type });
+  new File([receiptBytes], 'receipt.png', { type });
 
 export function analyzeRequest(file = imageFile()) {
   const form = new FormData();
@@ -37,11 +36,3 @@ export function analyzeRequest(file = imageFile()) {
 }
 
 export const fakeExtract: ExtractReceipt = async () => extracted;
-
-export function fakeStorage(): ObjectStorage {
-  return {
-    save: async () => {},
-    get: async () => null,
-    delete: async () => {},
-  };
-}

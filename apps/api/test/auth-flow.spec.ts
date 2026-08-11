@@ -4,9 +4,10 @@ import { hashToken } from '../src/modules/auth/service';
 import { createSessionModule } from '../src/modules/session';
 import { SessionService } from '../src/modules/session/service';
 import { Session } from '../src/schemas';
-import { analyzeRequest, fakeExtract, fakeStorage } from './fixtures';
+import { analyzeRequest, fakeExtract } from './fixtures';
+import { testStorage } from './setup';
 
-const app = createSessionModule(new SessionService(fakeExtract, fakeStorage()));
+const app = createSessionModule(new SessionService(fakeExtract, testStorage()));
 
 type Draft = { id: string; auth: { participantId: string; token: string } };
 
