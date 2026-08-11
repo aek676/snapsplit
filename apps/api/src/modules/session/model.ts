@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { objectId } from '../../model';
+import { objectId } from '../../common/model';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
 
 const lineItemView = t.Object({

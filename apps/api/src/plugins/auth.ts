@@ -1,5 +1,5 @@
 import { Elysia, status, t } from 'elysia';
-import { objectId } from '../model';
+import { objectId } from '../common/model';
 import { AuthModel } from '../modules/auth/model';
 import { hashToken } from '../modules/auth/service';
 import { Session } from '../schemas';
