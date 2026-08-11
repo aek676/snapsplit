@@ -16,9 +16,16 @@ The API has two test targets:
 
 - `bun nx test api` — unit tests over `apps/api/src`. Cached, no external services.
 - `bun nx test:integration api` — integration tests over `apps/api/test`. **Requires a
-  reachable Docker socket**: `apps/api/test/setup.ts` boots a `mongo:7.0` testcontainer for
-  the run. Without Docker the suite fails while starting the container. Caching is disabled,
-  and the first run pulls the image, so allow up to the 180s startup budget.
+  reachable Docker socket**: `apps/api/test/setup.ts` boots two testcontainers for the run,
+  `mongo:7.0` and the `fsouza/fake-gcs-server` emulator, so the suite exercises the real
+  `GcsObjectStorage` instead of a fake. Without Docker the suite fails while starting the
+  containers. Caching is disabled, and the first run pulls both images, so allow up to the
+  180s startup budget.
+
+Integration specs get their storage from `testStorage()` in `apps/api/test/setup.ts`, which
+points `createReceiptStorage` at the emulator and its per-run bucket. Only the AI extraction
+stays faked. Unit specs under `src` keep their own in-memory fakes — that target must stay
+cached and free of external services.
 
 `bun nx run-many -t test` and the root `test` script cover only the unit target. Run
 `test:integration` explicitly, as CI does via `bun nx affected -t ... test test:integration`.
@@ -44,6 +51,5 @@ The API has two test targets:
 - USE for: advanced config options, unfamiliar flags, migration guides, plugin configuration, edge cases
 - DON'T USE for: basic generator syntax (`nx g @nx/react:app`), standard commands, things you already know
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
-
 
 <!-- nx configuration end-->
