@@ -47,6 +47,6 @@ describe('GcsObjectStorage against the emulator', () => {
     const found = await storage.get('receipt.png');
     expect(found?.mediaType).toBe('text/plain');
     expect(Uint8Array.from(found?.bytes ?? [])).toEqual(replacement);
-    expect(await storedReceipts()).toHaveLength(1);
+    expect(await storedReceipts()).toEqual(['receipts/receipt.png']);
   });
 });
