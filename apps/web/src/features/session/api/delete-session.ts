@@ -28,15 +28,15 @@ export const useDeleteSession = ({
 }: UseDeleteSessionOptions) => {
   const queryClient = useQueryClient();
 
-  const { onSuccess, ...restConfig } = mutationConfig || {};
+  const { onSettled, ...restConfig } = mutationConfig || {};
 
   return useMutation({
-    onSuccess: (...args) => {
+    onSettled: (...args) => {
       clearToken(sessionId);
       queryClient.removeQueries({
         queryKey: getSessionQueryOptions(sessionId).queryKey,
       });
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
     ...restConfig,
     mutationFn: deleteSession,
