@@ -1,15 +1,9 @@
 import { useForm } from '@tanstack/react-form';
 import { useNavigate } from '@tanstack/react-router';
-import {
-  AlertTriangle,
-  Camera,
-  CheckCircle2,
-  Link as LinkIcon,
-} from 'lucide-react';
+import { Camera, Link as LinkIcon } from 'lucide-react';
 import { Button } from 'shadcn-ui/button';
 import { useDeleteSession } from '@/features/session/api/delete-session';
 import { LOW_CONFIDENCE_THRESHOLD } from '@/features/session/line-item/components/line-item-row';
-import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
 import { formatCents } from '@/utils/money';
 
@@ -49,44 +43,23 @@ function ReviewHeader({ session }: { session: Session }) {
 }
 
 function ReceiptSummary({ session }: { session: Session }) {
-  const totals = receiptTotals(session);
-
   return (
-    <div className="flex flex-col gap-2 px-2">
-      <div className="flex items-center justify-between border-t border-border pt-4">
-        <span className="screen-title">Total</span>
-        <span className="screen-title tabular-nums">
-          {formatCents(session.totalCents, session.currency)}
-        </span>
-      </div>
-      {totals.matches ? (
-        <div className="flex items-center gap-2 text-success">
-          <CheckCircle2 size={16} />
-          <span className="unit-meta">Items sum to total</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-warning">
-          <AlertTriangle size={16} />
-          <span className="unit-meta">
-            Items add up to{' '}
-            {formatCents(totals.itemsTotalCents, session.currency)},{' '}
-            {formatCents(Math.abs(totals.discrepancyCents), session.currency)}{' '}
-            {totals.discrepancyCents > 0 ? 'over' : 'under'} the receipt total
-          </span>
-        </div>
-      )}
+    <div className="flex items-center justify-between border-t border-border px-2 pt-4">
+      <span className="screen-title">Total</span>
+      <span className="screen-title tabular-nums">
+        {formatCents(session.totalCents, session.currency)}
+      </span>
     </div>
   );
 }
 
 function ConfirmButton({ session }: { session: Session }) {
-  const totals = receiptTotals(session);
   const hasItems = session.lineItems.length > 0;
   const hasLowConfidence = session.lineItems.some(
     (item) => item.aiConfidence < LOW_CONFIDENCE_THRESHOLD,
   );
 
-  const canConfirm = totals.matches && hasItems && !hasLowConfidence;
+  const canConfirm = hasItems && !hasLowConfidence;
 
   const form = useForm({
     defaultValues: {},
