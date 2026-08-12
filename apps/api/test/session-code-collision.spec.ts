@@ -33,14 +33,16 @@ function confirm(draft: Draft) {
 
 function scriptCodeDraws(...bytes: number[]) {
   let call = 0;
-  const spy = spyOn(crypto, 'getRandomValues').mockImplementation((array) => {
-    const byte = bytes[Math.min(call++, bytes.length - 1)];
-    if (array)
-      new Uint8Array(array.buffer, array.byteOffset, array.byteLength).fill(
-        byte,
-      );
-    return array;
-  });
+  const spy = spyOn(crypto, 'getRandomValues').mockImplementation(
+    <T extends ArrayBufferView | null>(array: T): T => {
+      const byte = bytes[Math.min(call++, bytes.length - 1)];
+      if (array)
+        new Uint8Array(array.buffer, array.byteOffset, array.byteLength).fill(
+          byte,
+        );
+      return array;
+    },
+  );
   spies.push(spy);
   return spy;
 }
