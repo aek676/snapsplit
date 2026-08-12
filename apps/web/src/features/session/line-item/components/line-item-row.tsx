@@ -1,9 +1,8 @@
+import { LOW_CONFIDENCE_THRESHOLD } from '@repo/shared-types';
 import { Money } from '@/components/ui/money';
 import { DeleteLineItem } from '@/features/session/line-item/components/delete-line-item';
 import { EditLineItem } from '@/features/session/line-item/components/edit-line-item';
 import type { LineItem } from '@/types/session';
-
-export const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
 interface LineItemRowProps {
   sessionId: string;

@@ -1,7 +1,7 @@
+import { LOW_CONFIDENCE_THRESHOLD } from '@repo/shared-types';
 import { Link as LinkIcon } from 'lucide-react';
 import { Button } from 'shadcn-ui/button';
 import { useConfirmSession } from '@/features/session/api/confirm-session';
-import { LOW_CONFIDENCE_THRESHOLD } from '@/features/session/line-item/components/line-item-row';
 import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
 
