@@ -1,8 +1,9 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, Navigate, redirect } from '@tanstack/react-router';
 
 import { Alert, AlertDescription } from 'shadcn-ui/alert';
 import { Button } from 'shadcn-ui/button';
 import { Spinner } from 'shadcn-ui/spinner';
+
 import { useSession } from '@/features/session/api/get-session';
 import { ReviewLayout } from '@/features/session/components/session-draft';
 import { LineItemList } from '@/features/session/line-item/components/line-item-list';
@@ -41,6 +42,14 @@ function ReviewPage() {
   }
 
   const session = sessionQuery.data;
+
+  if (session.status !== 'draft') {
+    return session.code ? (
+      <Navigate to="/s/$code" params={{ code: session.code }} replace />
+    ) : (
+      <Navigate to="/" replace />
+    );
+  }
 
   return (
     <ReviewLayout session={session}>

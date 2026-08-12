@@ -3,7 +3,9 @@ import { lineItemSchema } from './lineItem';
 import { participantSchema } from './participant';
 
 export const STATUS = ['draft', 'open', 'closed'] as const;
-export type Status = (typeof STATUS)[number];
+
+export const TOTAL_SOURCE = ['receipt', 'items'] as const;
+export type TotalSource = (typeof TOTAL_SOURCE)[number];
 
 const sessionSchema = new Schema(
   {
@@ -18,6 +20,12 @@ const sessionSchema = new Schema(
     date: Date,
     currency: { type: String, default: 'EUR' },
     totalCents: { type: Number, min: 0, default: 0 },
+    totalSource: {
+      type: String,
+      enum: TOTAL_SOURCE,
+      required: true,
+      default: 'receipt',
+    },
     receiptImageUrl: { type: String, default: '' },
     closedAt: Date,
     participants: [participantSchema],

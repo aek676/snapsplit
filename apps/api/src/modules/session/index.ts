@@ -46,6 +46,29 @@ export function createSessionModule(service: SessionService) {
         tags: ['Sessions'],
       },
     })
+    .patch(
+      '/:sessionId',
+      ({ session, body }) => service.updateSession(session, body),
+      {
+        owner: true,
+        params: SessionModel.sessionParams,
+        body: SessionModel.sessionUpdateBody,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          409: t.Union([
+            SessionModel.sessionNotDraft,
+            SessionModel.totalPatchConflict,
+          ]),
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Edit the receipt details of a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    )
     .delete('/:sessionId', ({ session }) => service.deleteSession(session), {
       owner: true,
       params: SessionModel.sessionParams,
@@ -119,6 +142,33 @@ export function createSessionModule(service: SessionService) {
         },
         detail: {
           summary: 'Delete a line item from a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .post(
+      '/:sessionId/confirm',
+      ({ session }) => service.confirmSession(session),
+      {
+        owner: true,
+        params: SessionModel.sessionParams,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          409: t.Union([
+            SessionModel.sessionNotDraft,
+            SessionModel.sessionEmpty,
+            SessionModel.sessionNeedsReview,
+            SessionModel.sessionTotalMismatch,
+          ]),
+          500: t.Union([
+            SessionModel.codeGenerationFailed,
+            SessionModel.internalError,
+          ]),
+        },
+        detail: {
+          summary: 'Confirm a draft session and publish its share code',
           tags: ['Sessions'],
         },
       },

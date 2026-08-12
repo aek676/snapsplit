@@ -5,6 +5,14 @@ export function formatCents(cents: number, currency: string): string {
   }).format(cents / 100);
 }
 
+export function formatCentsBare(cents: number, currency: string): string {
+  const { decimalScale } = currencyFormat(currency);
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: decimalScale,
+    maximumFractionDigits: decimalScale,
+  }).format(cents / 100);
+}
+
 export interface CurrencyFormat {
   symbol: string;
   prefix: string;

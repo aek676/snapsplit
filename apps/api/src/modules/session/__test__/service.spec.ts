@@ -13,7 +13,13 @@ import { Session } from '../../../schemas';
 import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
 import type { SessionModel } from '../model';
-import { buildDraftPayload, SessionService, toSessionView } from '../service';
+import {
+  buildDraftPayload,
+  generateSessionCode,
+  lineSumCents,
+  SessionService,
+  toSessionView,
+} from '../service';
 
 const deviceTokenHash = hashToken('device-token-abc');
 
@@ -88,6 +94,7 @@ describe('toSessionView', () => {
     const view = toSessionView(doc);
 
     expect(view.id).toBe(String(doc._id));
+    expect(view.code).toBeNull();
     expect(view.status).toBe('draft');
     expect(view.merchant).toBe('Bar Paco');
     expect(view.receiptImageUrl).toBe('/receipts/abc.jpg');
@@ -231,7 +238,7 @@ function draftSession() {
   );
 }
 
-function lineItemService() {
+function sessionService() {
   return new SessionService(
     mock<ExtractReceipt>(async () => extracted),
     fakeStorage(),
@@ -300,6 +307,188 @@ describe('SessionService.deleteSession', () => {
   });
 });
 
+describe('SessionService.updateSession', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('corrects a total the AI misread off the receipt', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(session, {
+      totalCents: 950,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(950);
+    expect(result.lineItems).toHaveLength(2);
+  });
+
+  it('corrects the merchant and the date', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(session, {
+      merchant: 'Bar Pepe',
+      date: '2026-07-08',
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.merchant).toBe('Bar Pepe');
+    expect(result.date).toBe('2026-07-08');
+    expect(result.totalCents).toBe(4230);
+  });
+
+  it('leaves everything untouched for an empty patch', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(
+      session,
+      {},
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result).toMatchObject({
+      merchant: 'Bar Paco',
+      date: '2026-07-07',
+      totalCents: 4230,
+    });
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = draftSession();
+    session.status = 'open';
+
+    const result = await sessionService().updateSession(session, {
+      totalCents: 950,
+    });
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+    expect(session.totalCents).toBe(4230);
+  });
+
+  it('adopts the items sum when the owner hands the total over', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(session, {
+      totalSource: 'items',
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalSource).toBe('items');
+    expect(result.totalCents).toBe(950);
+  });
+
+  it('returns 409 when the patch both fixes and hands over the total', async () => {
+    const session = draftSession();
+
+    const result = await sessionService().updateSession(session, {
+      totalCents: 1200,
+      totalSource: 'items',
+    });
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Cannot set a total while it follows the items',
+    });
+    expect(session.totalCents).toBe(4230);
+    expect(session.totalSource).toBe('receipt');
+  });
+
+  it('goes back to a fixed total when the owner types one in', async () => {
+    const session = draftSession();
+    session.totalSource = 'items';
+
+    const result = (await sessionService().updateSession(session, {
+      totalCents: 1200,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalSource).toBe('receipt');
+    expect(result.totalCents).toBe(1200);
+  });
+});
+
+describe('a total handed over to the items', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  function followingSession() {
+    const session = draftSession();
+    session.totalSource = 'items';
+    session.totalCents = 950;
+    return session;
+  }
+
+  it('follows an added line', async () => {
+    const session = followingSession();
+
+    const result = (await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(1550);
+  });
+
+  it('follows an edited line', async () => {
+    const session = followingSession();
+    const id = String(session.lineItems[0]._id);
+
+    const result = (await sessionService().updateLineItem(session, id, {
+      quantity: 5,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(1350);
+  });
+
+  it('follows a deleted line', async () => {
+    const session = followingSession();
+    const id = String(session.lineItems[0]._id);
+
+    const result = (await sessionService().deleteLineItem(
+      session,
+      id,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(350);
+  });
+
+  it('never trips the confirm gate', async () => {
+    const session = followingSession();
+    for (const item of session.lineItems) item.aiConfidence = 1;
+    mockPublish(session);
+
+    await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    });
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.status).toBe('open');
+  });
+});
+
 describe('SessionService.addLineItem', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
@@ -317,7 +506,7 @@ describe('SessionService.addLineItem', () => {
   it('appends a hand-entered line with a computed total and full confidence', async () => {
     const session = draftSession();
 
-    const result = (await lineItemService().addLineItem(session, {
+    const result = (await sessionService().addLineItem(session, {
       name: 'Vino',
       quantity: 2,
       unitPriceCents: 300,
@@ -331,14 +520,28 @@ describe('SessionService.addLineItem', () => {
       lineTotalCents: 600,
       aiConfidence: 1,
     });
-    expect(result.totalCents).toBe(4830);
+  });
+
+  it('leaves the receipt total where the owner can still reach it', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    })) as SessionModel['draftSessionResponse'];
+
+    // The missing line brings the items up to the printed total, it does not
+    // push the target further away.
+    expect(result.totalCents).toBe(4230);
+    expect(lineSumCents(session)).toBe(1550);
   });
 
   it('returns 409 when the session is not a draft', async () => {
     const session = draftSession();
     session.status = 'open';
 
-    const result = await lineItemService().addLineItem(session, {
+    const result = await sessionService().addLineItem(session, {
       name: 'Vino',
       quantity: 1,
       unitPriceCents: 100,
@@ -369,7 +572,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       quantity: 5,
     })) as SessionModel['draftSessionResponse'];
 
@@ -379,14 +582,14 @@ describe('SessionService.updateLineItem', () => {
       lineTotalCents: 1000,
       aiConfidence: 1,
     });
-    expect(result.totalCents).toBe(4630);
+    expect(result.totalCents).toBe(4230);
   });
 
   it('clears the low-confidence flag when the name is corrected', async () => {
     const session = draftSession();
     const id = String(session.lineItems[1]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       name: 'Tapa de jamón',
     })) as SessionModel['draftSessionResponse'];
 
@@ -400,7 +603,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[1]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       quantity: 2,
     })) as SessionModel['draftSessionResponse'];
 
@@ -409,14 +612,14 @@ describe('SessionService.updateLineItem', () => {
       lineTotalCents: 700,
       aiConfidence: 1,
     });
-    expect(result.totalCents).toBe(4580);
+    expect(result.totalCents).toBe(4230);
   });
 
   it('leaves confidence untouched for an empty patch', async () => {
     const session = draftSession();
     const id = String(session.lineItems[1]._id);
 
-    const result = (await lineItemService().updateLineItem(
+    const result = (await sessionService().updateLineItem(
       session,
       id,
       {},
@@ -430,7 +633,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       name: 'Cerveza',
     })) as SessionModel['draftSessionResponse'];
 
@@ -442,7 +645,7 @@ describe('SessionService.updateLineItem', () => {
   });
 
   it('returns 404 when the line item is missing', async () => {
-    const result = await lineItemService().updateLineItem(
+    const result = await sessionService().updateLineItem(
       draftSession(),
       '507f1f77bcf86cd799439011',
       { name: 'x' },
@@ -458,7 +661,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     session.status = 'closed';
 
-    const result = await lineItemService().updateLineItem(session, 'lid', {
+    const result = await sessionService().updateLineItem(session, 'lid', {
       name: 'x',
     });
 
@@ -483,11 +686,11 @@ describe('SessionService.deleteLineItem', () => {
     mock.restore();
   });
 
-  it('removes the line and subtracts its total from the session', async () => {
+  it('removes the line and leaves the receipt total alone', async () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().deleteLineItem(
+    const result = (await sessionService().deleteLineItem(
       session,
       id,
     )) as SessionModel['draftSessionResponse'];
@@ -495,24 +698,21 @@ describe('SessionService.deleteLineItem', () => {
     expect(session.lineItems).toHaveLength(1);
     expect(result.lineItems).toHaveLength(1);
     expect(result.lineItems[0]).toMatchObject({ name: 'Tapa' });
-    expect(result.totalCents).toBe(3630);
+    expect(result.totalCents).toBe(4230);
   });
 
-  it('clamps the session total at 0 instead of going negative', async () => {
+  it('keeps the total readable once every line is gone', async () => {
     const session = draftSession();
-    session.totalCents = 100;
-    const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().deleteLineItem(
-      session,
-      id,
-    )) as SessionModel['draftSessionResponse'];
+    for (const id of session.lineItems.map((item) => String(item._id)))
+      await sessionService().deleteLineItem(session, id);
 
-    expect(result.totalCents).toBe(0);
+    expect(session.lineItems).toHaveLength(0);
+    expect(session.totalCents).toBe(4230);
   });
 
   it('returns 404 when the line item is missing', async () => {
-    const result = await lineItemService().deleteLineItem(
+    const result = await sessionService().deleteLineItem(
       draftSession(),
       '507f1f77bcf86cd799439011',
     );
@@ -527,11 +727,264 @@ describe('SessionService.deleteLineItem', () => {
     const session = draftSession();
     session.status = 'closed';
 
-    const result = await lineItemService().deleteLineItem(session, 'lid');
+    const result = await sessionService().deleteLineItem(session, 'lid');
 
     expect(result).toMatchObject({
       code: 409,
       response: 'Session is not editable',
     });
+  });
+});
+
+const CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
+
+describe('generateSessionCode', () => {
+  it('draws 8 characters from the unambiguous alphabet', () => {
+    // Over many draws, an I/O/0/1 slipping into the alphabet would show up here.
+    for (let i = 0; i < 200; i++)
+      expect(generateSessionCode()).toMatch(CODE_PATTERN);
+  });
+
+  it('does not repeat itself', () => {
+    const codes = new Set(Array.from({ length: 100 }, generateSessionCode));
+
+    expect(codes.size).toBe(100);
+  });
+});
+
+/**
+ * The shared `extracted` fixture fails review by design: it reads a total the
+ * lines fall short of, and one of those lines is barely legible.
+ */
+const confirmable: ExtractedReceipt = {
+  ...extracted,
+  totalCents: 950,
+  lineItems: extracted.lineItems.map((item) => ({
+    ...item,
+    aiConfidence: 0.9,
+  })),
+};
+
+function confirmableSession() {
+  return new Session(
+    buildDraftPayload(deviceTokenHash, confirmable, '/receipts/abc.jpg'),
+  );
+}
+
+function duplicateKeyError(keyPattern: Record<string, 1> = { code: 1 }) {
+  return Object.assign(new Error('E11000 duplicate key'), {
+    code: 11000,
+    keyPattern,
+  });
+}
+
+type PublishAttempt = { filter: Record<string, unknown>; code: string };
+
+/**
+ * Stands in for the conditional publish, applying the `$set` to `target` so the
+ * returned document is the one the caller gets a view of. Every attempt is
+ * recorded, so a test can assert what the compare-and-swap was keyed on.
+ */
+function mockPublish(target: HydratedDocument<Session> | null) {
+  const attempts: PublishAttempt[] = [];
+  spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+    filter: Record<string, unknown>,
+    update: { $set: Record<string, unknown> },
+  ) => {
+    attempts.push({ filter, code: String(update.$set.code) });
+    if (!target) return Promise.resolve(null);
+    Object.assign(target, update.$set);
+    return Promise.resolve(target);
+  }) as never);
+  return attempts;
+}
+
+describe('SessionService.confirmSession', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('publishes the session with a share code', async () => {
+    const session = confirmableSession();
+    const attempts = mockPublish(session);
+
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.status).toBe('open');
+    expect(result.code).toMatch(CODE_PATTERN);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].code).toBe(result.code as string);
+  });
+
+  it('only publishes a session that is still a draft', async () => {
+    const session = confirmableSession();
+    const attempts = mockPublish(session);
+
+    await sessionService().confirmSession(session);
+
+    expect(attempts[0].filter).toEqual({
+      _id: session._id,
+      status: 'draft',
+    });
+  });
+
+  it('returns 409 when another request published first', async () => {
+    const session = confirmableSession();
+    mockPublish(null);
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = confirmableSession();
+    session.status = 'open';
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+  });
+
+  it('returns 409 when there is nothing to split', async () => {
+    const session = confirmableSession();
+    session.lineItems.splice(0);
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session has no items to split',
+    });
+  });
+
+  it('returns 409 while an item is still below the confidence threshold', async () => {
+    const session = confirmableSession();
+    session.lineItems[1].aiConfidence = 0.4;
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Some items still need review',
+    });
+    expect(session.code).toBeUndefined();
+  });
+
+  it('returns 409 while the items fall short of the receipt total', async () => {
+    const session = confirmableSession();
+    session.totalCents = 1100;
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Items do not add up to the receipt total',
+    });
+    expect(session.status).toBe('draft');
+    expect(session.code).toBeUndefined();
+  });
+
+  it('publishes once the owner has brought the two together', async () => {
+    const session = confirmableSession();
+    session.totalCents = 1100;
+    mockPublish(session);
+
+    await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 1,
+      unitPriceCents: 150,
+    });
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(lineSumCents(session)).toBe(1100);
+    expect(result.status).toBe('open');
+  });
+
+  it('regenerates the code when the unique index rejects a duplicate', async () => {
+    const session = confirmableSession();
+    const attempted: string[] = [];
+    spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+      _filter: unknown,
+      update: { $set: Record<string, unknown> },
+    ) => {
+      attempted.push(String(update.$set.code));
+      if (attempted.length === 1) return Promise.reject(duplicateKeyError());
+      Object.assign(session, update.$set);
+      return Promise.resolve(session);
+    }) as never);
+
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(attempted).toHaveLength(2);
+    expect(attempted[0]).not.toBe(attempted[1]);
+    expect(result.code).toBe(attempted[1]);
+  });
+
+  it('returns 500 once the code attempts run out', async () => {
+    const publish = spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      duplicateKeyError(),
+    );
+
+    const result = await sessionService().confirmSession(confirmableSession());
+
+    expect(result).toMatchObject({
+      code: 500,
+      response: 'Failed to generate a session code',
+    });
+    expect(publish).toHaveBeenCalledTimes(5);
+  });
+
+  it('lets an unrelated write failure bubble up to the module handler', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      new Error('mongo down'),
+    );
+
+    await expect(
+      sessionService().confirmSession(confirmableSession()),
+    ).rejects.toThrow('mongo down');
+  });
+
+  it('lets a duplicate without a key pattern bubble up instead of retrying', async () => {
+    const publish = spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      Object.assign(new Error('E11000 duplicate key'), { code: 11000 }),
+    );
+
+    await expect(
+      sessionService().confirmSession(confirmableSession()),
+    ).rejects.toThrow('E11000 duplicate key');
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a duplicate on another key bubble up instead of retrying', async () => {
+    const publish = spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      duplicateKeyError({ 'participants.deviceTokenHash': 1 }),
+    );
+
+    await expect(
+      sessionService().confirmSession(confirmableSession()),
+    ).rejects.toThrow('E11000 duplicate key');
+    expect(publish).toHaveBeenCalledTimes(1);
   });
 });

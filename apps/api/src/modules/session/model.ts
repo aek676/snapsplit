@@ -1,6 +1,10 @@
 import { t } from 'elysia';
 import { objectId } from '../../common/model';
+import { STATUS, TOTAL_SOURCE, type TotalSource } from '../../schemas';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
+
+const status = t.UnionEnum([...STATUS]);
+const totalSource = t.UnionEnum([...TOTAL_SOURCE]);
 
 const lineItemView = t.Object({
   id: t.String(),
@@ -13,11 +17,13 @@ const lineItemView = t.Object({
 
 const sessionView = t.Object({
   id: t.String(),
-  status: t.String(),
+  code: t.Nullable(t.String()),
+  status,
   merchant: t.Nullable(t.String()),
   date: t.Nullable(t.String()),
   currency: t.String(),
   totalCents: t.Number(),
+  totalSource,
   receiptImageUrl: t.String(),
   lineItems: t.Array(lineItemView),
 });
@@ -26,6 +32,15 @@ const authView = t.Object({
   participantId: t.String(),
   token: t.String(),
 });
+
+const sessionUpdateBody = t.Partial(
+  t.Object({
+    merchant: t.String({ minLength: 1 }),
+    date: t.String({ format: 'date' }),
+    totalCents: t.Integer({ minimum: 0 }),
+    totalSource: t.Literal('items' satisfies TotalSource),
+  }),
+);
 
 const lineItemCreateBody = t.Object({
   name: t.String({ minLength: 1 }),
@@ -38,6 +53,7 @@ export const SessionModel = {
     image: t.File({ type: [...SUPPORTED_IMAGE_MIME_TYPES], maxSize: '10m' }),
   }),
   sessionParams: t.Object({ sessionId: objectId }),
+  sessionUpdateBody,
   lineItemParams: t.Object({ sessionId: objectId, lineItemId: objectId }),
   lineItemCreateBody,
   lineItemUpdateBody: t.Partial(lineItemCreateBody),
@@ -52,6 +68,13 @@ export const SessionModel = {
   internalError: t.Literal('Unexpected server error'),
   lineItemNotFound: t.Literal('Line item not found'),
   sessionNotDraft: t.Literal('Session is not editable'),
+  totalPatchConflict: t.Literal(
+    'Cannot set a total while it follows the items',
+  ),
+  sessionEmpty: t.Literal('Session has no items to split'),
+  sessionNeedsReview: t.Literal('Some items still need review'),
+  sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
+  codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 
 export type SessionModel = {

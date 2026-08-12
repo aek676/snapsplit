@@ -33,7 +33,7 @@
       "cache": false,
       "options": {
         "cwd": "apps/api",
-        "command": "bun test --preload ./test/setup.ts --coverage-dir coverage/integration test"
+        "command": "bun test --preload ./test/setup.ts --coverage-dir coverage/integration test/"
       }
     },
     "build": {

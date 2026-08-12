@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { currencyFormat, currencySymbol, formatCents } from '@/utils/money';
+import {
+  currencyFormat,
+  currencySymbol,
+  formatCents,
+  formatCentsBare,
+} from '@/utils/money';
 
 /** Locale separators are routinely not ASCII whitespace. */
 const NBSP = ' ';
@@ -9,6 +14,17 @@ describe('formatCents', () => {
   it('formats cents as a currency amount', () => {
     expect(formatCents(4230, 'EUR')).toMatch(/42[.,]30/);
     expect(formatCents(0, 'EUR')).toMatch(/0[.,]00/);
+  });
+});
+
+describe('formatCentsBare', () => {
+  it('formats the amount without a currency symbol', () => {
+    expect(formatCentsBare(4230, 'EUR')).toMatch(/^42[.,]30$/);
+    expect(formatCentsBare(0, 'EUR')).toMatch(/^0[.,]00$/);
+  });
+
+  it('takes the fraction digits from the currency', () => {
+    expect(formatCentsBare(4230, 'JPY')).toBe('42');
   });
 });
 

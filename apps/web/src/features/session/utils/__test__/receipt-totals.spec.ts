@@ -23,13 +23,13 @@ describe('receiptTotals', () => {
     expect(totals.matches).toBe(true);
   });
 
-  it('tolerates rounding discrepancies of up to two cents', () => {
+  it('flags rounding discrepancies of a couple of cents', () => {
     const totals = receiptTotals({
       lineItems: [lineItem(999)],
       totalCents: 1001,
     });
     expect(totals.discrepancyCents).toBe(-2);
-    expect(totals.matches).toBe(true);
+    expect(totals.matches).toBe(false);
   });
 
   it('flags larger discrepancies', () => {
