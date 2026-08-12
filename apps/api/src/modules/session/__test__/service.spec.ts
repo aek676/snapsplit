@@ -374,6 +374,118 @@ describe('SessionService.updateSession', () => {
     });
     expect(session.totalCents).toBe(4230);
   });
+
+  it('adopts the items sum when the owner hands the total over', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(session, {
+      totalSource: 'items',
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalSource).toBe('items');
+    expect(result.totalCents).toBe(950);
+  });
+
+  it('returns 409 when the patch both fixes and hands over the total', async () => {
+    const session = draftSession();
+
+    const result = await sessionService().updateSession(session, {
+      totalCents: 1200,
+      totalSource: 'items',
+    });
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Cannot set a total while it follows the items',
+    });
+    expect(session.totalCents).toBe(4230);
+    expect(session.totalSource).toBe('receipt');
+  });
+
+  it('goes back to a fixed total when the owner types one in', async () => {
+    const session = draftSession();
+    session.totalSource = 'items';
+
+    const result = (await sessionService().updateSession(session, {
+      totalCents: 1200,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalSource).toBe('receipt');
+    expect(result.totalCents).toBe(1200);
+  });
+});
+
+describe('a total handed over to the items', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  function followingSession() {
+    const session = draftSession();
+    session.totalSource = 'items';
+    session.totalCents = 950;
+    return session;
+  }
+
+  it('follows an added line', async () => {
+    const session = followingSession();
+
+    const result = (await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(1550);
+  });
+
+  it('follows an edited line', async () => {
+    const session = followingSession();
+    const id = String(session.lineItems[0]._id);
+
+    const result = (await sessionService().updateLineItem(session, id, {
+      quantity: 5,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(1350);
+  });
+
+  it('follows a deleted line', async () => {
+    const session = followingSession();
+    const id = String(session.lineItems[0]._id);
+
+    const result = (await sessionService().deleteLineItem(
+      session,
+      id,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(350);
+  });
+
+  it('never trips the confirm gate', async () => {
+    const session = followingSession();
+    for (const item of session.lineItems) item.aiConfidence = 1;
+
+    await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    });
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.status).toBe('open');
+  });
 });
 
 describe('SessionService.addLineItem', () => {

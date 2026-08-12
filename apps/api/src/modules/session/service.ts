@@ -67,10 +67,6 @@ export function buildDraftPayload(
   };
 }
 
-/**
- * What the line items add up to. `totalCents` holds the total printed on the
- * receipt instead, so the two only meet once the owner has reviewed the draft.
- */
 export function lineSumCents(session: HydratedDocument<Session>): number {
   return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
 }
@@ -86,6 +82,7 @@ export function toSessionView(
     date: session.date ? session.date.toISOString().slice(0, 10) : null,
     currency: session.currency,
     totalCents: session.totalCents,
+    totalSource: session.totalSource,
     receiptImageUrl: session.receiptImageUrl,
     lineItems: session.lineItems.map((item) => ({
       id: String(item._id),
@@ -154,9 +151,15 @@ export class SessionService {
     if (session.status !== 'draft')
       return status(409, SessionModel.sessionNotDraft.const);
 
+    if (patch.totalCents !== undefined && patch.totalSource === 'items')
+      return status(409, SessionModel.totalPatchConflict.const);
+
     if (patch.merchant !== undefined) session.merchant = patch.merchant;
     if (patch.date !== undefined) session.date = new Date(patch.date);
-    if (patch.totalCents !== undefined) session.totalCents = patch.totalCents;
+    if (patch.totalSource === 'items' || patch.totalCents !== undefined) {
+      session.totalSource = patch.totalSource ?? 'receipt';
+      session.totalCents = patch.totalCents ?? lineSumCents(session);
+    }
 
     await session.save();
     return toSessionView(session);
@@ -176,6 +179,10 @@ export class SessionService {
       lineTotalCents: input.quantity * input.unitPriceCents,
       aiConfidence: 1,
     });
+
+    if (session.totalSource === 'items')
+      session.totalCents = lineSumCents(session);
+
     await session.save();
     return toSessionView(session);
   }
@@ -205,6 +212,9 @@ export class SessionService {
     )
       lineItem.aiConfidence = 1;
 
+    if (session.totalSource === 'items')
+      session.totalCents = lineSumCents(session);
+
     await session.save();
     return toSessionView(session);
   }
@@ -217,6 +227,10 @@ export class SessionService {
     if (!lineItem) return status(404, SessionModel.lineItemNotFound.const);
 
     session.lineItems.pull(lineItemId);
+
+    if (session.totalSource === 'items')
+      session.totalCents = lineSumCents(session);
+
     await session.save();
     return toSessionView(session);
   }

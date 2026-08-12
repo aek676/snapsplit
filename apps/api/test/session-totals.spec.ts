@@ -133,7 +133,12 @@ async function removeLineItem(
 function patchSession(
   app: SessionApp,
   draft: Draft,
-  patch: Partial<{ merchant: string; date: string; totalCents: number }>,
+  patch: Partial<{
+    merchant: string;
+    date: string;
+    totalCents: number;
+    totalSource: 'items';
+  }>,
 ) {
   return app.handle(
     new Request(`http://localhost/sessions/${draft.id}`, {
@@ -162,6 +167,7 @@ async function storedTotals(sessionId: string) {
 
   const stored = raw as unknown as {
     totalCents: number;
+    totalSource: string;
     lineItems: { lineTotalCents: number }[];
   };
   const lineSum = stored.lineItems.reduce(
@@ -171,6 +177,7 @@ async function storedTotals(sessionId: string) {
 
   return {
     totalCents: stored.totalCents,
+    totalSource: stored.totalSource,
     lineSum,
     gap: stored.totalCents - lineSum,
     lineCount: stored.lineItems.length,
@@ -183,6 +190,7 @@ describe('totalCents against the sum of the line items', () => {
 
     expect(await storedTotals(draft.id)).toEqual({
       totalCents: 1100,
+      totalSource: 'receipt',
       lineSum: 950,
       gap: 150,
       lineCount: 2,
@@ -225,6 +233,7 @@ describe('totalCents against the sum of the line items', () => {
 
     expect(await storedTotals(draft.id)).toEqual({
       totalCents: 1100,
+      totalSource: 'receipt',
       lineSum: 0,
       gap: 1100,
       lineCount: 0,
@@ -240,6 +249,7 @@ describe('totalCents against the sum of the line items', () => {
 
     expect(await storedTotals(draft.id)).toEqual({
       totalCents: 100,
+      totalSource: 'receipt',
       lineSum: 350,
       gap: -250,
       lineCount: 1,
@@ -311,5 +321,122 @@ describe('confirming a draft against its receipt total', () => {
     expect(res.status).toBe(409);
     expect(await res.text()).toBe('Session is not editable');
     expect(await storedTotals(draft.id)).toMatchObject({ totalCents: 950 });
+  });
+});
+
+describe('handing the total over to the items', () => {
+  it('adopts the items sum and keeps following every edit', async () => {
+    const draft = await createDraft(overstatedApp);
+    expect(await storedTotals(draft.id)).toMatchObject({ gap: 150 });
+
+    const handed = await patchSession(overstatedApp, draft, {
+      totalSource: 'items',
+    });
+    expect(handed.status).toBe(200);
+    expect(await storedTotals(draft.id)).toMatchObject({
+      totalCents: 950,
+      gap: 0,
+    });
+
+    const added = await addLineItem(overstatedApp, draft, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    });
+    expect(await storedTotals(draft.id)).toMatchObject({
+      totalCents: 1550,
+      gap: 0,
+    });
+
+    await patchLineItem(overstatedApp, draft, added.lineItems[0].id, {
+      quantity: 5,
+    });
+    expect(await storedTotals(draft.id)).toMatchObject({ gap: 0 });
+
+    await removeLineItem(overstatedApp, draft, added.lineItems[2].id);
+    expect(await storedTotals(draft.id)).toMatchObject({ gap: 0 });
+
+    const res = await confirm(overstatedApp, draft);
+    expect(res.status).toBe(200);
+  });
+
+  it('typing a total takes the reins back from the items', async () => {
+    const draft = await createDraft(overstatedApp);
+    await patchSession(overstatedApp, draft, { totalSource: 'items' });
+
+    const res = await patchSession(overstatedApp, draft, { totalCents: 2000 });
+    expect(res.status).toBe(200);
+
+    await addLineItem(overstatedApp, draft, {
+      name: 'Vino',
+      quantity: 1,
+      unitPriceCents: 100,
+    });
+    expect(await storedTotals(draft.id)).toMatchObject({
+      totalCents: 2000,
+      lineSum: 1050,
+    });
+  });
+
+  // The update body used to carry the full `totalSource` enum, and `t.UnionEnum`
+  // ships a `default` that Elysia writes into every body — so a patch that never
+  // mentioned the total still arrived with one, and dropped the session back to
+  // the receipt. Only the route sees it: the service is handed a clean patch.
+  it('keeps following the items when an unrelated field is edited', async () => {
+    const draft = await createDraft(overstatedApp);
+    await patchSession(overstatedApp, draft, { totalSource: 'items' });
+
+    const res = await patchSession(overstatedApp, draft, {
+      merchant: 'Bar Pepe',
+    });
+    expect(res.status).toBe(200);
+    expect(await storedTotals(draft.id)).toMatchObject({
+      totalSource: 'items',
+      gap: 0,
+    });
+
+    await addLineItem(overstatedApp, draft, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    });
+    expect(await storedTotals(draft.id)).toMatchObject({
+      totalCents: 1550,
+      gap: 0,
+    });
+  });
+
+  it('rejects handing the total back to the receipt without a number', async () => {
+    const draft = await createDraft(overstatedApp);
+    await patchSession(overstatedApp, draft, { totalSource: 'items' });
+
+    const res = await overstatedApp.handle(
+      new Request(`http://localhost/sessions/${draft.id}`, {
+        method: 'PATCH',
+        headers: authorized(draft, { 'content-type': 'application/json' }),
+        body: JSON.stringify({ totalSource: 'receipt' }),
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await storedTotals(draft.id)).toMatchObject({
+      totalCents: 950,
+      gap: 0,
+    });
+  });
+
+  it('rejects fixing a total and handing it over in the same patch', async () => {
+    const draft = await createDraft(overstatedApp);
+
+    const res = await patchSession(overstatedApp, draft, {
+      totalCents: 2000,
+      totalSource: 'items',
+    });
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe(
+      'Cannot set a total while it follows the items',
+    );
+    expect(await storedTotals(draft.id)).toMatchObject({ totalCents: 1100 });
   });
 });

@@ -57,7 +57,10 @@ export function createSessionModule(service: SessionService) {
           200: SessionModel.draftSessionResponse,
           401: AuthModel.unauthorized,
           403: AuthModel.forbidden,
-          409: SessionModel.sessionNotDraft,
+          409: t.Union([
+            SessionModel.sessionNotDraft,
+            SessionModel.totalPatchConflict,
+          ]),
           500: SessionModel.internalError,
         },
         detail: {
