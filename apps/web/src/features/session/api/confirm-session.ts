@@ -29,7 +29,7 @@ export const useConfirmSession = ({
 }: UseConfirmSessionOptions) => {
   const queryClient = useQueryClient();
 
-  const { onSuccess, ...restConfig } = mutationConfig || {};
+  const { onSuccess, onError, ...restConfig } = mutationConfig || {};
 
   return useMutation({
     onSuccess: (session, ...args) => {
@@ -38,6 +38,12 @@ export const useConfirmSession = ({
         session,
       );
       onSuccess?.(session, ...args);
+    },
+    onError: (error, ...args) => {
+      queryClient.invalidateQueries({
+        queryKey: getSessionQueryOptions(sessionId).queryKey,
+      });
+      onError?.(error, ...args);
     },
     ...restConfig,
     mutationFn: confirmSession,
