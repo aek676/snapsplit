@@ -905,7 +905,7 @@ describe('SessionService.confirmSession', () => {
   it('lets an unrelated write failure bubble up to the module handler', async () => {
     spyOn(Session.prototype, 'save').mockRejectedValue(new Error('mongo down'));
 
-    expect(
+    await expect(
       sessionService().confirmSession(confirmableSession()),
     ).rejects.toThrow('mongo down');
   });
