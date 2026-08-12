@@ -1,11 +1,10 @@
-import { useForm } from '@tanstack/react-form';
 import { useNavigate } from '@tanstack/react-router';
-import { AlertTriangle, Camera, Link as LinkIcon } from 'lucide-react';
+import { AlertTriangle, Camera } from 'lucide-react';
 import { Button } from 'shadcn-ui/button';
 import { useDeleteSession } from '@/features/session/api/delete-session';
 import { useUpdateSession } from '@/features/session/api/update-session';
+import { ConfirmSessionButton } from '@/features/session/components/confirm-session-button';
 import { EditReceiptTotal } from '@/features/session/components/edit-receipt-total';
-import { LOW_CONFIDENCE_THRESHOLD } from '@/features/session/line-item/components/line-item-row';
 import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
 import { formatCents, formatCentsBare } from '@/utils/money';
@@ -104,40 +103,6 @@ function ReceiptSummary({ session }: { session: Session }) {
   );
 }
 
-function ConfirmButton({ session }: { session: Session }) {
-  const totals = receiptTotals(session);
-  const hasItems = session.lineItems.length > 0;
-  const hasLowConfidence = session.lineItems.some(
-    (item) => item.aiConfidence < LOW_CONFIDENCE_THRESHOLD,
-  );
-
-  const canConfirm = totals.matches && hasItems && !hasLowConfidence;
-
-  const form = useForm({
-    defaultValues: {},
-    onSubmit: async () => {
-      // TODO: Implement backend endpoint and mutation
-      console.log('Confirm session:', session.id);
-    },
-  });
-
-  return (
-    <form.Field name="confirm">
-      {() => (
-        <Button
-          size="xl"
-          className="flex-1"
-          disabled={!canConfirm}
-          onClick={() => form.handleSubmit()}
-        >
-          Confirm & create link
-          <LinkIcon size={20} />
-        </Button>
-      )}
-    </form.Field>
-  );
-}
-
 function RetakePhotoButton({ session }: { session: Session }) {
   const navigate = useNavigate();
   const deleteSession = useDeleteSession({ sessionId: session.id });
@@ -166,7 +131,7 @@ function ReviewFooter({ session }: { session: Session }) {
     <div className="fixed bottom-0 left-0 z-40 w-full border-t border-border bg-surface shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
       <div className="mx-auto flex min-h-20 w-full max-w-160 items-center gap-3 px-5 py-4">
         <RetakePhotoButton session={session} />
-        <ConfirmButton session={session} />
+        <ConfirmSessionButton session={session} />
       </div>
     </div>
   );
