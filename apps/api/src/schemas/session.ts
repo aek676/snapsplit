@@ -3,7 +3,6 @@ import { lineItemSchema } from './lineItem';
 import { participantSchema } from './participant';
 
 export const STATUS = ['draft', 'open', 'closed'] as const;
-export type Status = (typeof STATUS)[number];
 
 const sessionSchema = new Schema(
   {

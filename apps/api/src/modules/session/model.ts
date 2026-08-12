@@ -1,6 +1,9 @@
 import { t } from 'elysia';
 import { objectId } from '../../common/model';
+import { STATUS } from '../../schemas';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
+
+const status = t.UnionEnum([...STATUS]);
 
 const lineItemView = t.Object({
   id: t.String(),
@@ -14,7 +17,7 @@ const lineItemView = t.Object({
 const sessionView = t.Object({
   id: t.String(),
   code: t.Nullable(t.String()),
-  status: t.String(),
+  status,
   merchant: t.Nullable(t.String()),
   date: t.Nullable(t.String()),
   currency: t.String(),
