@@ -1,11 +1,14 @@
 import { useForm } from '@tanstack/react-form';
 import { useNavigate } from '@tanstack/react-router';
-import { Camera, Link as LinkIcon } from 'lucide-react';
+import { AlertTriangle, Camera, Link as LinkIcon } from 'lucide-react';
 import { Button } from 'shadcn-ui/button';
 import { useDeleteSession } from '@/features/session/api/delete-session';
+import { useUpdateSession } from '@/features/session/api/update-session';
+import { EditReceiptTotal } from '@/features/session/components/edit-receipt-total';
 import { LOW_CONFIDENCE_THRESHOLD } from '@/features/session/line-item/components/line-item-row';
+import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
-import { formatCents } from '@/utils/money';
+import { formatCents, formatCentsBare } from '@/utils/money';
 
 interface ReviewLayoutProps {
   session: Session;
@@ -43,23 +46,72 @@ function ReviewHeader({ session }: { session: Session }) {
 }
 
 function ReceiptSummary({ session }: { session: Session }) {
+  const totals = receiptTotals(session);
+  const updateSession = useUpdateSession({ sessionId: session.id });
+
   return (
-    <div className="flex items-center justify-between border-t border-border px-2 pt-4">
-      <span className="screen-title">Total</span>
-      <span className="screen-title tabular-nums">
-        {formatCents(session.totalCents, session.currency)}
-      </span>
+    <div className="flex flex-col gap-2 border-t border-border px-2 pt-4">
+      <div className="flex items-center justify-between">
+        <span className="screen-title">Total</span>
+        <div className="flex items-center gap-1">
+          <span className="screen-title tabular-nums">
+            {!totals.matches && (
+              <>
+                <span className="text-warning">
+                  {formatCentsBare(totals.itemsTotalCents, session.currency)}
+                </span>
+                {' / '}
+              </>
+            )}
+            {formatCents(session.totalCents, session.currency)}
+          </span>
+          <EditReceiptTotal session={session} />
+        </div>
+      </div>
+      {session.totalSource === 'items' && (
+        <span className="unit-meta text-content-secondary">
+          Kept in sync with the items
+        </span>
+      )}
+      {!totals.matches && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 text-warning">
+            <AlertTriangle size={16} />
+            <span className="unit-meta">
+              {formatCents(Math.abs(totals.discrepancyCents), session.currency)}{' '}
+              {totals.discrepancyCents > 0 ? 'over' : 'under'} the receipt total
+            </span>
+          </div>
+          {session.lineItems.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              disabled={updateSession.isPending}
+              onClick={() =>
+                updateSession.mutate({
+                  sessionId: session.id,
+                  data: { totalSource: 'items' },
+                })
+              }
+            >
+              Use the items total from now on
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function ConfirmButton({ session }: { session: Session }) {
+  const totals = receiptTotals(session);
   const hasItems = session.lineItems.length > 0;
   const hasLowConfidence = session.lineItems.some(
     (item) => item.aiConfidence < LOW_CONFIDENCE_THRESHOLD,
   );
 
-  const canConfirm = hasItems && !hasLowConfidence;
+  const canConfirm = totals.matches && hasItems && !hasLowConfidence;
 
   const form = useForm({
     defaultValues: {},
