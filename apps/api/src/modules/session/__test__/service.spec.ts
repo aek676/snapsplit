@@ -909,4 +909,18 @@ describe('SessionService.confirmSession', () => {
       sessionService().confirmSession(confirmableSession()),
     ).rejects.toThrow('mongo down');
   });
+
+  it('lets a duplicate on another key bubble up instead of retrying', async () => {
+    const save = spyOn(Session.prototype, 'save').mockRejectedValue(
+      Object.assign(new Error('E11000 duplicate key'), {
+        code: 11000,
+        keyPattern: { 'participants.deviceTokenHash': 1 },
+      }),
+    );
+
+    await expect(
+      sessionService().confirmSession(confirmableSession()),
+    ).rejects.toThrow('E11000 duplicate key');
+    expect(save).toHaveBeenCalledTimes(1);
+  });
 });
