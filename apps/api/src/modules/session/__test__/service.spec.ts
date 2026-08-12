@@ -474,6 +474,7 @@ describe('a total handed over to the items', () => {
   it('never trips the confirm gate', async () => {
     const session = followingSession();
     for (const item of session.lineItems) item.aiConfidence = 1;
+    mockPublish(session);
 
     await sessionService().addLineItem(session, {
       name: 'Vino',
@@ -770,11 +771,32 @@ function confirmableSession() {
   );
 }
 
-function duplicateKeyError() {
+function duplicateKeyError(keyPattern: Record<string, 1> = { code: 1 }) {
   return Object.assign(new Error('E11000 duplicate key'), {
     code: 11000,
-    keyPattern: { code: 1 },
+    keyPattern,
   });
+}
+
+type PublishAttempt = { filter: Record<string, unknown>; code: string };
+
+/**
+ * Stands in for the conditional publish, applying the `$set` to `target` so the
+ * returned document is the one the caller gets a view of. Every attempt is
+ * recorded, so a test can assert what the compare-and-swap was keyed on.
+ */
+function mockPublish(target: HydratedDocument<Session> | null) {
+  const attempts: PublishAttempt[] = [];
+  spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+    filter: Record<string, unknown>,
+    update: { $set: Record<string, unknown> },
+  ) => {
+    attempts.push({ filter, code: String(update.$set.code) });
+    if (!target) return Promise.resolve(null);
+    Object.assign(target, update.$set);
+    return Promise.resolve(target);
+  }) as never);
+  return attempts;
 }
 
 describe('SessionService.confirmSession', () => {
@@ -793,6 +815,7 @@ describe('SessionService.confirmSession', () => {
 
   it('publishes the session with a share code', async () => {
     const session = confirmableSession();
+    const attempts = mockPublish(session);
 
     const result = (await sessionService().confirmSession(
       session,
@@ -800,8 +823,32 @@ describe('SessionService.confirmSession', () => {
 
     expect(result.status).toBe('open');
     expect(result.code).toMatch(CODE_PATTERN);
-    expect(session.status).toBe('open');
-    expect(session.code).toBe(result.code);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].code).toBe(result.code as string);
+  });
+
+  it('only publishes a session that is still a draft', async () => {
+    const session = confirmableSession();
+    const attempts = mockPublish(session);
+
+    await sessionService().confirmSession(session);
+
+    expect(attempts[0].filter).toEqual({
+      _id: session._id,
+      status: 'draft',
+    });
+  });
+
+  it('returns 409 when another request published first', async () => {
+    const session = confirmableSession();
+    mockPublish(null);
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
   });
 
   it('returns 409 when the session is not a draft', async () => {
@@ -858,6 +905,7 @@ describe('SessionService.confirmSession', () => {
   it('publishes once the owner has brought the two together', async () => {
     const session = confirmableSession();
     session.totalCents = 1100;
+    mockPublish(session);
 
     await sessionService().addLineItem(session, {
       name: 'Vino',
@@ -873,17 +921,20 @@ describe('SessionService.confirmSession', () => {
   });
 
   it('regenerates the code when the unique index rejects a duplicate', async () => {
-    const attempted: (string | null)[] = [];
-    spyOn(Session.prototype, 'save').mockImplementation(async function (
-      this: HydratedDocument<Session>,
-    ) {
-      attempted.push(this.code ?? null);
-      if (attempted.length === 1) throw duplicateKeyError();
-      return this;
-    });
+    const session = confirmableSession();
+    const attempted: string[] = [];
+    spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+      _filter: unknown,
+      update: { $set: Record<string, unknown> },
+    ) => {
+      attempted.push(String(update.$set.code));
+      if (attempted.length === 1) return Promise.reject(duplicateKeyError());
+      Object.assign(session, update.$set);
+      return Promise.resolve(session);
+    }) as never);
 
     const result = (await sessionService().confirmSession(
-      confirmableSession(),
+      session,
     )) as SessionModel['draftSessionResponse'];
 
     expect(attempted).toHaveLength(2);
@@ -892,7 +943,9 @@ describe('SessionService.confirmSession', () => {
   });
 
   it('returns 500 once the code attempts run out', async () => {
-    spyOn(Session.prototype, 'save').mockRejectedValue(duplicateKeyError());
+    const publish = spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      duplicateKeyError(),
+    );
 
     const result = await sessionService().confirmSession(confirmableSession());
 
@@ -900,27 +953,38 @@ describe('SessionService.confirmSession', () => {
       code: 500,
       response: 'Failed to generate a session code',
     });
+    expect(publish).toHaveBeenCalledTimes(5);
   });
 
   it('lets an unrelated write failure bubble up to the module handler', async () => {
-    spyOn(Session.prototype, 'save').mockRejectedValue(new Error('mongo down'));
+    spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      new Error('mongo down'),
+    );
 
     await expect(
       sessionService().confirmSession(confirmableSession()),
     ).rejects.toThrow('mongo down');
   });
 
-  it('lets a duplicate on another key bubble up instead of retrying', async () => {
-    const save = spyOn(Session.prototype, 'save').mockRejectedValue(
-      Object.assign(new Error('E11000 duplicate key'), {
-        code: 11000,
-        keyPattern: { 'participants.deviceTokenHash': 1 },
-      }),
+  it('lets a duplicate without a key pattern bubble up instead of retrying', async () => {
+    const publish = spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      Object.assign(new Error('E11000 duplicate key'), { code: 11000 }),
     );
 
     await expect(
       sessionService().confirmSession(confirmableSession()),
     ).rejects.toThrow('E11000 duplicate key');
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a duplicate on another key bubble up instead of retrying', async () => {
+    const publish = spyOn(Session, 'findOneAndUpdate').mockRejectedValue(
+      duplicateKeyError({ 'participants.deviceTokenHash': 1 }),
+    );
+
+    await expect(
+      sessionService().confirmSession(confirmableSession()),
+    ).rejects.toThrow('E11000 duplicate key');
+    expect(publish).toHaveBeenCalledTimes(1);
   });
 });

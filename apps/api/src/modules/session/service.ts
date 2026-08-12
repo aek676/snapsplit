@@ -251,12 +251,15 @@ export class SessionService {
     if (lineSumCents(session) !== session.totalCents)
       return status(409, SessionModel.sessionTotalMismatch.const);
 
-    session.status = 'open';
     for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
-      session.code = generateSessionCode();
       try {
-        await session.save();
-        return toSessionView(session);
+        const published = await Session.findOneAndUpdate(
+          { _id: session._id, status: 'draft' },
+          { $set: { status: 'open', code: generateSessionCode() } },
+          { returnDocument: 'after' },
+        );
+        if (!published) return status(409, SessionModel.sessionNotDraft.const);
+        return toSessionView(published);
       } catch (error) {
         if (!isDuplicateKeyError(error, 'code')) throw error;
       }

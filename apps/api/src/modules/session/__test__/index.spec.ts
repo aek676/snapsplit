@@ -185,6 +185,18 @@ function mockLookup(session: unknown) {
   return spyOn(Session, 'findOne').mockImplementation((() => query) as never);
 }
 
+/** Stands in for the conditional publish, applying the `$set` to `target`. */
+function mockPublish(target: unknown) {
+  return spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+    _filter: unknown,
+    update: { $set: Record<string, unknown> },
+  ) => {
+    if (!target) return Promise.resolve(null);
+    Object.assign(target, update.$set);
+    return Promise.resolve(target);
+  }) as never);
+}
+
 function request(
   path: string,
   { method = 'GET', body, token = OWNER_TOKEN as string | null } = {} as {
@@ -616,11 +628,6 @@ describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
 describe('POST /sessions/:sessionId/confirm', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
-    spyOn(Session.prototype, 'save').mockImplementation(async function (
-      this: unknown,
-    ) {
-      return this;
-    });
   });
 
   afterEach(() => {
@@ -630,6 +637,7 @@ describe('POST /sessions/:sessionId/confirm', () => {
   it('returns 200 with the published session and its code', async () => {
     const session = draftSession();
     mockLookup(session);
+    mockPublish(session);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
@@ -640,6 +648,20 @@ describe('POST /sessions/:sessionId/confirm', () => {
     const body = await res.json();
     expect(body.status).toBe('open');
     expect(body.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+  });
+
+  it('returns 409 when a concurrent request published first', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    mockPublish(null);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/confirm`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not editable');
   });
 
   it('returns 403 for a guest token and leaves the session in draft', async () => {
