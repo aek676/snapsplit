@@ -8,9 +8,9 @@ import { analyzeRequest } from './fixtures';
 import { testStorage } from './setup';
 
 /**
- * Characterization tests: they pin what the incremental `totalCents` arithmetic
- * does today, not what it should do. When the accumulator is replaced, the tests
- * that flip are the ones naming the gap.
+ * `totalCents` holds the total printed on the receipt, read once by the AI and
+ * never moved by an edit. The line items are what the owner reconciles against
+ * it, and confirm is the gate: a draft only publishes when the two agree.
  */
 
 const CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
@@ -43,8 +43,8 @@ const receipt = (totalCents: number): ExtractedReceipt => ({
 
 /** The printed total matches the lines the AI read. */
 const coherent = receipt(950);
-/** The AI read the printed total but missed lines worth 32.80. */
-const overstated = receipt(4230);
+/** The AI read the printed total but missed a line worth 1.50. */
+const overstated = receipt(1100);
 /** The AI misread the printed total as lower than the lines it did read. */
 const understated = receipt(100);
 
@@ -130,6 +130,20 @@ async function removeLineItem(
   return (await res.json()) as Draft;
 }
 
+function patchSession(
+  app: SessionApp,
+  draft: Draft,
+  patch: Partial<{ merchant: string; date: string; totalCents: number }>,
+) {
+  return app.handle(
+    new Request(`http://localhost/sessions/${draft.id}`, {
+      method: 'PATCH',
+      headers: authorized(draft, { 'content-type': 'application/json' }),
+      body: JSON.stringify(patch),
+    }),
+  );
+}
+
 function confirm(app: SessionApp, draft: Draft) {
   return app.handle(
     new Request(`http://localhost/sessions/${draft.id}/confirm`, {
@@ -164,20 +178,19 @@ async function storedTotals(sessionId: string) {
 }
 
 describe('totalCents against the sum of the line items', () => {
-  it('is born already apart when the receipt total outruns the lines', async () => {
+  it('is born apart when the receipt total outruns the lines', async () => {
     const draft = await createDraft(overstatedApp);
 
     expect(await storedTotals(draft.id)).toEqual({
-      totalCents: 4230,
+      totalCents: 1100,
       lineSum: 950,
-      gap: 3280,
+      gap: 150,
       lineCount: 2,
     });
   });
 
-  it('keeps the gap it was born with, whatever the owner edits', async () => {
+  it('holds the printed total still while the owner edits lines', async () => {
     const draft = await createDraft(overstatedApp);
-    expect((await storedTotals(draft.id)).gap).toBe(3280);
 
     const added = await addLineItem(overstatedApp, draft, {
       name: 'Vino',
@@ -185,97 +198,74 @@ describe('totalCents against the sum of the line items', () => {
       unitPriceCents: 300,
     });
     expect(await storedTotals(draft.id)).toMatchObject({
-      totalCents: 4830,
+      totalCents: 1100,
       lineSum: 1550,
-      gap: 3280,
     });
 
     await patchLineItem(overstatedApp, draft, added.lineItems[0].id, {
       quantity: 5,
     });
     expect(await storedTotals(draft.id)).toMatchObject({
-      totalCents: 5230,
+      totalCents: 1100,
       lineSum: 1950,
-      gap: 3280,
     });
 
     await removeLineItem(overstatedApp, draft, added.lineItems[1].id);
     expect(await storedTotals(draft.id)).toMatchObject({
-      totalCents: 4880,
+      totalCents: 1100,
       lineSum: 1600,
-      gap: 3280,
     });
   });
 
-  it('still claims 32.80 once every line is gone', async () => {
+  it('still reads the printed total once every line is gone', async () => {
     const draft = await createDraft(overstatedApp);
 
     for (const lineItem of draft.lineItems)
       await removeLineItem(overstatedApp, draft, lineItem.id);
 
     expect(await storedTotals(draft.id)).toEqual({
-      totalCents: 3280,
+      totalCents: 1100,
       lineSum: 0,
-      gap: 3280,
+      gap: 1100,
       lineCount: 0,
     });
   });
 
-  it('moves the gap on its own when the clamp catches a negative total', async () => {
+  it('never rewrites a total the lines have overshot', async () => {
     const draft = await createDraft(understatedApp);
-    expect(await storedTotals(draft.id)).toMatchObject({
-      totalCents: 100,
-      lineSum: 950,
-      gap: -850,
-    });
 
-    // 100 - 600 would be -500, so the clamp rewrites the total to 0.
+    // Dropping 6.00 worth of lines used to drive the total negative and clamp
+    // it to 0. It is not the running tally any more, so it does not move.
     await removeLineItem(understatedApp, draft, draft.lineItems[0].id);
 
     expect(await storedTotals(draft.id)).toEqual({
-      totalCents: 0,
+      totalCents: 100,
       lineSum: 350,
-      gap: -350,
+      gap: -250,
       lineCount: 1,
     });
   });
+});
 
-  it('never drifts by itself: the arithmetic is exact when the seed is', async () => {
-    const draft = await createDraft(coherentApp);
-    expect(await storedTotals(draft.id)).toMatchObject({ gap: 0 });
-
-    const withWine = await addLineItem(coherentApp, draft, {
-      name: 'Vino',
-      quantity: 2,
-      unitPriceCents: 300,
-    });
-    const withDessert = await addLineItem(coherentApp, draft, {
-      name: 'Postre',
-      quantity: 1,
-      unitPriceCents: 450,
-    });
-    await patchLineItem(coherentApp, draft, withDessert.lineItems[0].id, {
-      quantity: 5,
-    });
-    await patchLineItem(coherentApp, draft, withDessert.lineItems[1].id, {
-      unitPriceCents: 400,
-    });
-    await patchLineItem(coherentApp, draft, withWine.lineItems[2].id, {
-      name: 'Vino tinto',
-    });
-    await removeLineItem(coherentApp, draft, withDessert.lineItems[3].id);
-
-    expect(await storedTotals(draft.id)).toEqual({
-      totalCents: 2000,
-      lineSum: 2000,
-      gap: 0,
-      lineCount: 3,
-    });
-  });
-
-  it('publishes the gap: confirm opens the session and nothing checks the total', async () => {
+describe('confirming a draft against its receipt total', () => {
+  it('refuses to publish while the lines fall short', async () => {
     const draft = await createDraft(overstatedApp);
 
+    const res = await confirm(overstatedApp, draft);
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Items do not add up to the receipt total');
+    expect(await storedTotals(draft.id)).toMatchObject({ gap: 150 });
+  });
+
+  it('publishes once the owner keys in the line the AI missed', async () => {
+    const draft = await createDraft(overstatedApp);
+
+    await addLineItem(overstatedApp, draft, {
+      name: 'Café',
+      quantity: 1,
+      unitPriceCents: 150,
+    });
     const res = await confirm(overstatedApp, draft);
 
     expect(res.status).toBe(200);
@@ -283,9 +273,43 @@ describe('totalCents against the sum of the line items', () => {
     expect(body.status).toBe('open');
     expect(body.code).toMatch(CODE_PATTERN);
     expect(await storedTotals(draft.id)).toMatchObject({
-      totalCents: 4230,
-      lineSum: 950,
-      gap: 3280,
+      totalCents: 1100,
+      lineSum: 1100,
+      gap: 0,
     });
+  });
+
+  it('publishes once the owner corrects a total the AI misread', async () => {
+    const draft = await createDraft(understatedApp);
+
+    const patched = await patchSession(understatedApp, draft, {
+      totalCents: 950,
+    });
+    expect(patched.status).toBe(200);
+
+    const res = await confirm(understatedApp, draft);
+
+    expect(res.status).toBe(200);
+    expect(await storedTotals(draft.id)).toMatchObject({ gap: 0 });
+  });
+
+  it('publishes a draft that was already balanced when it arrived', async () => {
+    const draft = await createDraft(coherentApp);
+
+    const res = await confirm(coherentApp, draft);
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).code).toMatch(CODE_PATTERN);
+  });
+
+  it('freezes the receipt total once the session is published', async () => {
+    const draft = await createDraft(coherentApp);
+    expect((await confirm(coherentApp, draft)).status).toBe(200);
+
+    const res = await patchSession(coherentApp, draft, { totalCents: 5000 });
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not editable');
+    expect(await storedTotals(draft.id)).toMatchObject({ totalCents: 950 });
   });
 });

@@ -16,6 +16,7 @@ import type { SessionModel } from '../model';
 import {
   buildDraftPayload,
   generateSessionCode,
+  lineSumCents,
   SessionService,
   toSessionView,
 } from '../service';
@@ -306,6 +307,75 @@ describe('SessionService.deleteSession', () => {
   });
 });
 
+describe('SessionService.updateSession', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('corrects a total the AI misread off the receipt', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(session, {
+      totalCents: 950,
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.totalCents).toBe(950);
+    expect(result.lineItems).toHaveLength(2);
+  });
+
+  it('corrects the merchant and the date', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(session, {
+      merchant: 'Bar Pepe',
+      date: '2026-07-08',
+    })) as SessionModel['draftSessionResponse'];
+
+    expect(result.merchant).toBe('Bar Pepe');
+    expect(result.date).toBe('2026-07-08');
+    expect(result.totalCents).toBe(4230);
+  });
+
+  it('leaves everything untouched for an empty patch', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().updateSession(
+      session,
+      {},
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result).toMatchObject({
+      merchant: 'Bar Paco',
+      date: '2026-07-07',
+      totalCents: 4230,
+    });
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = draftSession();
+    session.status = 'open';
+
+    const result = await sessionService().updateSession(session, {
+      totalCents: 950,
+    });
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+    expect(session.totalCents).toBe(4230);
+  });
+});
+
 describe('SessionService.addLineItem', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
@@ -337,7 +407,21 @@ describe('SessionService.addLineItem', () => {
       lineTotalCents: 600,
       aiConfidence: 1,
     });
-    expect(result.totalCents).toBe(4830);
+  });
+
+  it('leaves the receipt total where the owner can still reach it', async () => {
+    const session = draftSession();
+
+    const result = (await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 2,
+      unitPriceCents: 300,
+    })) as SessionModel['draftSessionResponse'];
+
+    // The missing line brings the items up to the printed total, it does not
+    // push the target further away.
+    expect(result.totalCents).toBe(4230);
+    expect(lineSumCents(session)).toBe(1550);
   });
 
   it('returns 409 when the session is not a draft', async () => {
@@ -385,7 +469,7 @@ describe('SessionService.updateLineItem', () => {
       lineTotalCents: 1000,
       aiConfidence: 1,
     });
-    expect(result.totalCents).toBe(4630);
+    expect(result.totalCents).toBe(4230);
   });
 
   it('clears the low-confidence flag when the name is corrected', async () => {
@@ -415,7 +499,7 @@ describe('SessionService.updateLineItem', () => {
       lineTotalCents: 700,
       aiConfidence: 1,
     });
-    expect(result.totalCents).toBe(4580);
+    expect(result.totalCents).toBe(4230);
   });
 
   it('leaves confidence untouched for an empty patch', async () => {
@@ -489,7 +573,7 @@ describe('SessionService.deleteLineItem', () => {
     mock.restore();
   });
 
-  it('removes the line and subtracts its total from the session', async () => {
+  it('removes the line and leaves the receipt total alone', async () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
@@ -501,20 +585,17 @@ describe('SessionService.deleteLineItem', () => {
     expect(session.lineItems).toHaveLength(1);
     expect(result.lineItems).toHaveLength(1);
     expect(result.lineItems[0]).toMatchObject({ name: 'Tapa' });
-    expect(result.totalCents).toBe(3630);
+    expect(result.totalCents).toBe(4230);
   });
 
-  it('clamps the session total at 0 instead of going negative', async () => {
+  it('keeps the total readable once every line is gone', async () => {
     const session = draftSession();
-    session.totalCents = 100;
-    const id = String(session.lineItems[0]._id);
 
-    const result = (await sessionService().deleteLineItem(
-      session,
-      id,
-    )) as SessionModel['draftSessionResponse'];
+    for (const id of session.lineItems.map((item) => String(item._id)))
+      await sessionService().deleteLineItem(session, id);
 
-    expect(result.totalCents).toBe(0);
+    expect(session.lineItems).toHaveLength(0);
+    expect(session.totalCents).toBe(4230);
   });
 
   it('returns 404 when the line item is missing', async () => {
@@ -558,9 +639,13 @@ describe('generateSessionCode', () => {
   });
 });
 
-/** The shared `extracted` fixture fails review, by design. */
+/**
+ * The shared `extracted` fixture fails review by design: it reads a total the
+ * lines fall short of, and one of those lines is barely legible.
+ */
 const confirmable: ExtractedReceipt = {
   ...extracted,
+  totalCents: 950,
   lineItems: extracted.lineItems.map((item) => ({
     ...item,
     aiConfidence: 0.9,
@@ -642,6 +727,37 @@ describe('SessionService.confirmSession', () => {
       response: 'Some items still need review',
     });
     expect(session.code).toBeUndefined();
+  });
+
+  it('returns 409 while the items fall short of the receipt total', async () => {
+    const session = confirmableSession();
+    session.totalCents = 1100;
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Items do not add up to the receipt total',
+    });
+    expect(session.status).toBe('draft');
+    expect(session.code).toBeUndefined();
+  });
+
+  it('publishes once the owner has brought the two together', async () => {
+    const session = confirmableSession();
+    session.totalCents = 1100;
+
+    await sessionService().addLineItem(session, {
+      name: 'Vino',
+      quantity: 1,
+      unitPriceCents: 150,
+    });
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(lineSumCents(session)).toBe(1100);
+    expect(result.status).toBe('open');
   });
 
   it('regenerates the code when the unique index rejects a duplicate', async () => {

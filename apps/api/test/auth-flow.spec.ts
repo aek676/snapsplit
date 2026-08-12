@@ -73,7 +73,10 @@ describe('full thread: /analyze issues a token that opens its session', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ totalCents: 950 });
+    expect((await res.json()).lineItems).toMatchObject([
+      { name: 'Caña' },
+      { name: 'Tapa', lineTotalCents: 350 },
+    ]);
 
     const raw = await Session.collection.findOne({
       _id: new Types.ObjectId(draft.id),

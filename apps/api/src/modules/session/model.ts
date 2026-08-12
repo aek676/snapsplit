@@ -28,6 +28,14 @@ const authView = t.Object({
   token: t.String(),
 });
 
+const sessionUpdateBody = t.Partial(
+  t.Object({
+    merchant: t.String({ minLength: 1 }),
+    date: t.String({ format: 'date' }),
+    totalCents: t.Integer({ minimum: 0 }),
+  }),
+);
+
 const lineItemCreateBody = t.Object({
   name: t.String({ minLength: 1 }),
   quantity: t.Integer({ minimum: 0 }),
@@ -39,6 +47,7 @@ export const SessionModel = {
     image: t.File({ type: [...SUPPORTED_IMAGE_MIME_TYPES], maxSize: '10m' }),
   }),
   sessionParams: t.Object({ sessionId: objectId }),
+  sessionUpdateBody,
   lineItemParams: t.Object({ sessionId: objectId, lineItemId: objectId }),
   lineItemCreateBody,
   lineItemUpdateBody: t.Partial(lineItemCreateBody),
@@ -55,6 +64,7 @@ export const SessionModel = {
   sessionNotDraft: t.Literal('Session is not editable'),
   sessionEmpty: t.Literal('Session has no items to split'),
   sessionNeedsReview: t.Literal('Some items still need review'),
+  sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
   codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 

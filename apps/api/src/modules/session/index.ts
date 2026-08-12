@@ -46,6 +46,26 @@ export function createSessionModule(service: SessionService) {
         tags: ['Sessions'],
       },
     })
+    .patch(
+      '/:sessionId',
+      ({ session, body }) => service.updateSession(session, body),
+      {
+        owner: true,
+        params: SessionModel.sessionParams,
+        body: SessionModel.sessionUpdateBody,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          409: SessionModel.sessionNotDraft,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Edit the receipt details of a draft session',
+          tags: ['Sessions'],
+        },
+      },
+    )
     .delete('/:sessionId', ({ session }) => service.deleteSession(session), {
       owner: true,
       params: SessionModel.sessionParams,
@@ -137,6 +157,7 @@ export function createSessionModule(service: SessionService) {
             SessionModel.sessionNotDraft,
             SessionModel.sessionEmpty,
             SessionModel.sessionNeedsReview,
+            SessionModel.sessionTotalMismatch,
           ]),
           500: t.Union([
             SessionModel.codeGenerationFailed,

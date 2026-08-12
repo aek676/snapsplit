@@ -67,6 +67,14 @@ export function buildDraftPayload(
   };
 }
 
+/**
+ * What the line items add up to. `totalCents` holds the total printed on the
+ * receipt instead, so the two only meet once the owner has reviewed the draft.
+ */
+export function lineSumCents(session: HydratedDocument<Session>): number {
+  return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
+}
+
 export function toSessionView(
   session: HydratedDocument<Session>,
 ): SessionModel['draftSessionResponse'] {
@@ -139,6 +147,21 @@ export class SessionService {
     return status(204, undefined);
   }
 
+  async updateSession(
+    session: HydratedDocument<Session>,
+    patch: SessionModel['sessionUpdateBody'],
+  ) {
+    if (session.status !== 'draft')
+      return status(409, SessionModel.sessionNotDraft.const);
+
+    if (patch.merchant !== undefined) session.merchant = patch.merchant;
+    if (patch.date !== undefined) session.date = new Date(patch.date);
+    if (patch.totalCents !== undefined) session.totalCents = patch.totalCents;
+
+    await session.save();
+    return toSessionView(session);
+  }
+
   async addLineItem(
     session: HydratedDocument<Session>,
     input: SessionModel['lineItemCreateBody'],
@@ -146,15 +169,13 @@ export class SessionService {
     if (session.status !== 'draft')
       return status(409, SessionModel.sessionNotDraft.const);
 
-    const lineTotalCents = input.quantity * input.unitPriceCents;
     session.lineItems.push({
       name: input.name,
       quantity: input.quantity,
       unitPriceCents: input.unitPriceCents,
-      lineTotalCents,
+      lineTotalCents: input.quantity * input.unitPriceCents,
       aiConfidence: 1,
     });
-    session.totalCents += lineTotalCents;
     await session.save();
     return toSessionView(session);
   }
@@ -174,11 +195,8 @@ export class SessionService {
     if (patch.quantity !== undefined) lineItem.quantity = patch.quantity;
     if (patch.unitPriceCents !== undefined)
       lineItem.unitPriceCents = patch.unitPriceCents;
-    if (patch.quantity !== undefined || patch.unitPriceCents !== undefined) {
-      const previousLineTotalCents = lineItem.lineTotalCents;
+    if (patch.quantity !== undefined || patch.unitPriceCents !== undefined)
       lineItem.lineTotalCents = lineItem.quantity * lineItem.unitPriceCents;
-      session.totalCents += lineItem.lineTotalCents - previousLineTotalCents;
-    }
 
     if (
       patch.name !== undefined ||
@@ -198,10 +216,6 @@ export class SessionService {
     const lineItem = session.lineItems.id(lineItemId);
     if (!lineItem) return status(404, SessionModel.lineItemNotFound.const);
 
-    session.totalCents = Math.max(
-      0,
-      session.totalCents - lineItem.lineTotalCents,
-    );
     session.lineItems.pull(lineItemId);
     await session.save();
     return toSessionView(session);
@@ -220,6 +234,9 @@ export class SessionService {
       )
     )
       return status(409, SessionModel.sessionNeedsReview.const);
+
+    if (lineSumCents(session) !== session.totalCents)
+      return status(409, SessionModel.sessionTotalMismatch.const);
 
     session.status = 'open';
     for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {

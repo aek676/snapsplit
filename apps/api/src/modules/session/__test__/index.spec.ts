@@ -377,6 +377,87 @@ describe('GET /sessions/:sessionId', () => {
   });
 });
 
+describe('PATCH /sessions/:sessionId', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('corrects the receipt total and returns 200 with the updated view', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, {
+        method: 'PATCH',
+        body: { totalCents: 1600 },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ totalCents: 1600 });
+  });
+
+  it('returns 422 for a negative total', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, {
+        method: 'PATCH',
+        body: { totalCents: -1 },
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(session.totalCents).toBe(600);
+  });
+
+  it('returns 403 for a guest token and keeps the total', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, {
+        method: 'PATCH',
+        body: { totalCents: 1600 },
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(session.totalCents).toBe(600);
+  });
+
+  it('returns 409 once the session is published', async () => {
+    const session = draftSession();
+    session.status = 'open';
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}`, {
+        method: 'PATCH',
+        body: { totalCents: 1600 },
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not editable');
+  });
+});
+
 describe('DELETE /sessions/:sessionId', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
@@ -496,7 +577,7 @@ describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.lineItems).toHaveLength(0);
-    expect(body.totalCents).toBe(0);
+    expect(body.totalCents).toBe(600);
   });
 
   it('returns 404 when the line item is missing', async () => {
@@ -591,6 +672,21 @@ describe('POST /sessions/:sessionId/confirm', () => {
     );
 
     expect(res.status).toBe(401);
+    expect(session.status).toBe('draft');
+  });
+
+  it('returns 409 when the items fall short of the receipt total', async () => {
+    const session = draftSession();
+    session.totalCents = 1600;
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/confirm`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Items do not add up to the receipt total');
     expect(session.status).toBe('draft');
   });
 
