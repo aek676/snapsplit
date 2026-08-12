@@ -13,7 +13,12 @@ import { Session } from '../../../schemas';
 import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
 import type { SessionModel } from '../model';
-import { buildDraftPayload, SessionService, toSessionView } from '../service';
+import {
+  buildDraftPayload,
+  generateSessionCode,
+  SessionService,
+  toSessionView,
+} from '../service';
 
 const deviceTokenHash = hashToken('device-token-abc');
 
@@ -88,6 +93,7 @@ describe('toSessionView', () => {
     const view = toSessionView(doc);
 
     expect(view.id).toBe(String(doc._id));
+    expect(view.code).toBeNull();
     expect(view.status).toBe('draft');
     expect(view.merchant).toBe('Bar Paco');
     expect(view.receiptImageUrl).toBe('/receipts/abc.jpg');
@@ -231,7 +237,7 @@ function draftSession() {
   );
 }
 
-function lineItemService() {
+function sessionService() {
   return new SessionService(
     mock<ExtractReceipt>(async () => extracted),
     fakeStorage(),
@@ -317,7 +323,7 @@ describe('SessionService.addLineItem', () => {
   it('appends a hand-entered line with a computed total and full confidence', async () => {
     const session = draftSession();
 
-    const result = (await lineItemService().addLineItem(session, {
+    const result = (await sessionService().addLineItem(session, {
       name: 'Vino',
       quantity: 2,
       unitPriceCents: 300,
@@ -338,7 +344,7 @@ describe('SessionService.addLineItem', () => {
     const session = draftSession();
     session.status = 'open';
 
-    const result = await lineItemService().addLineItem(session, {
+    const result = await sessionService().addLineItem(session, {
       name: 'Vino',
       quantity: 1,
       unitPriceCents: 100,
@@ -369,7 +375,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       quantity: 5,
     })) as SessionModel['draftSessionResponse'];
 
@@ -386,7 +392,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[1]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       name: 'Tapa de jamón',
     })) as SessionModel['draftSessionResponse'];
 
@@ -400,7 +406,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[1]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       quantity: 2,
     })) as SessionModel['draftSessionResponse'];
 
@@ -416,7 +422,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[1]._id);
 
-    const result = (await lineItemService().updateLineItem(
+    const result = (await sessionService().updateLineItem(
       session,
       id,
       {},
@@ -430,7 +436,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().updateLineItem(session, id, {
+    const result = (await sessionService().updateLineItem(session, id, {
       name: 'Cerveza',
     })) as SessionModel['draftSessionResponse'];
 
@@ -442,7 +448,7 @@ describe('SessionService.updateLineItem', () => {
   });
 
   it('returns 404 when the line item is missing', async () => {
-    const result = await lineItemService().updateLineItem(
+    const result = await sessionService().updateLineItem(
       draftSession(),
       '507f1f77bcf86cd799439011',
       { name: 'x' },
@@ -458,7 +464,7 @@ describe('SessionService.updateLineItem', () => {
     const session = draftSession();
     session.status = 'closed';
 
-    const result = await lineItemService().updateLineItem(session, 'lid', {
+    const result = await sessionService().updateLineItem(session, 'lid', {
       name: 'x',
     });
 
@@ -487,7 +493,7 @@ describe('SessionService.deleteLineItem', () => {
     const session = draftSession();
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().deleteLineItem(
+    const result = (await sessionService().deleteLineItem(
       session,
       id,
     )) as SessionModel['draftSessionResponse'];
@@ -503,7 +509,7 @@ describe('SessionService.deleteLineItem', () => {
     session.totalCents = 100;
     const id = String(session.lineItems[0]._id);
 
-    const result = (await lineItemService().deleteLineItem(
+    const result = (await sessionService().deleteLineItem(
       session,
       id,
     )) as SessionModel['draftSessionResponse'];
@@ -512,7 +518,7 @@ describe('SessionService.deleteLineItem', () => {
   });
 
   it('returns 404 when the line item is missing', async () => {
-    const result = await lineItemService().deleteLineItem(
+    const result = await sessionService().deleteLineItem(
       draftSession(),
       '507f1f77bcf86cd799439011',
     );
@@ -527,11 +533,152 @@ describe('SessionService.deleteLineItem', () => {
     const session = draftSession();
     session.status = 'closed';
 
-    const result = await lineItemService().deleteLineItem(session, 'lid');
+    const result = await sessionService().deleteLineItem(session, 'lid');
 
     expect(result).toMatchObject({
       code: 409,
       response: 'Session is not editable',
     });
+  });
+});
+
+const CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
+
+describe('generateSessionCode', () => {
+  it('draws 8 characters from the unambiguous alphabet', () => {
+    // Over many draws, an I/O/0/1 slipping into the alphabet would show up here.
+    for (let i = 0; i < 200; i++)
+      expect(generateSessionCode()).toMatch(CODE_PATTERN);
+  });
+
+  it('does not repeat itself', () => {
+    const codes = new Set(Array.from({ length: 100 }, generateSessionCode));
+
+    expect(codes.size).toBe(100);
+  });
+});
+
+/** The shared `extracted` fixture fails review, by design. */
+const confirmable: ExtractedReceipt = {
+  ...extracted,
+  lineItems: extracted.lineItems.map((item) => ({
+    ...item,
+    aiConfidence: 0.9,
+  })),
+};
+
+function confirmableSession() {
+  return new Session(
+    buildDraftPayload(deviceTokenHash, confirmable, '/receipts/abc.jpg'),
+  );
+}
+
+function duplicateKeyError() {
+  return Object.assign(new Error('E11000 duplicate key'), {
+    code: 11000,
+    keyPattern: { code: 1 },
+  });
+}
+
+describe('SessionService.confirmSession', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('publishes the session with a share code', async () => {
+    const session = confirmableSession();
+
+    const result = (await sessionService().confirmSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.status).toBe('open');
+    expect(result.code).toMatch(CODE_PATTERN);
+    expect(session.status).toBe('open');
+    expect(session.code).toBe(result.code);
+  });
+
+  it('returns 409 when the session is not a draft', async () => {
+    const session = confirmableSession();
+    session.status = 'open';
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not editable',
+    });
+  });
+
+  it('returns 409 when there is nothing to split', async () => {
+    const session = confirmableSession();
+    session.lineItems.splice(0);
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session has no items to split',
+    });
+  });
+
+  it('returns 409 while an item is still below the confidence threshold', async () => {
+    const session = confirmableSession();
+    session.lineItems[1].aiConfidence = 0.4;
+
+    const result = await sessionService().confirmSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Some items still need review',
+    });
+    expect(session.code).toBeUndefined();
+  });
+
+  it('regenerates the code when the unique index rejects a duplicate', async () => {
+    const attempted: (string | null)[] = [];
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: HydratedDocument<Session>,
+    ) {
+      attempted.push(this.code ?? null);
+      if (attempted.length === 1) throw duplicateKeyError();
+      return this;
+    });
+
+    const result = (await sessionService().confirmSession(
+      confirmableSession(),
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(attempted).toHaveLength(2);
+    expect(attempted[0]).not.toBe(attempted[1]);
+    expect(result.code).toBe(attempted[1]);
+  });
+
+  it('returns 500 once the code attempts run out', async () => {
+    spyOn(Session.prototype, 'save').mockRejectedValue(duplicateKeyError());
+
+    const result = await sessionService().confirmSession(confirmableSession());
+
+    expect(result).toMatchObject({
+      code: 500,
+      response: 'Failed to generate a session code',
+    });
+  });
+
+  it('lets an unrelated write failure bubble up to the module handler', async () => {
+    spyOn(Session.prototype, 'save').mockRejectedValue(new Error('mongo down'));
+
+    expect(
+      sessionService().confirmSession(confirmableSession()),
+    ).rejects.toThrow('mongo down');
   });
 });

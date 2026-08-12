@@ -122,6 +122,32 @@ export function createSessionModule(service: SessionService) {
           tags: ['Sessions'],
         },
       },
+    )
+    .post(
+      '/:sessionId/confirm',
+      ({ session }) => service.confirmSession(session),
+      {
+        owner: true,
+        params: SessionModel.sessionParams,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          409: t.Union([
+            SessionModel.sessionNotDraft,
+            SessionModel.sessionEmpty,
+            SessionModel.sessionNeedsReview,
+          ]),
+          500: t.Union([
+            SessionModel.codeGenerationFailed,
+            SessionModel.internalError,
+          ]),
+        },
+        detail: {
+          summary: 'Confirm a draft session and publish its share code',
+          tags: ['Sessions'],
+        },
+      },
     );
 }
 

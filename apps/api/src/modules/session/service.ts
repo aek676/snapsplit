@@ -1,6 +1,7 @@
 import { status } from 'elysia';
 import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
+import { isDuplicateKeyError } from '../../common/mongo';
 import { type LineItem, type Participant, Session } from '../../schemas';
 import type { ObjectStorage } from '../../storage/object-storage';
 import { generateToken, hashToken } from '../auth/service';
@@ -10,6 +11,21 @@ import {
   receiptUrl,
 } from '../receipt/service';
 import { SessionModel } from './model';
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CODE_LENGTH = 8;
+const CODE_ATTEMPTS = 5;
+
+export const LOW_CONFIDENCE_THRESHOLD = 0.7;
+
+export function generateSessionCode() {
+  const bytes = new Uint8Array(CODE_LENGTH);
+  crypto.getRandomValues(bytes);
+  return Array.from(
+    bytes,
+    (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length],
+  ).join('');
+}
 
 type LineItemInput = Pick<
   LineItem,
@@ -56,6 +72,7 @@ export function toSessionView(
 ): SessionModel['draftSessionResponse'] {
   return {
     id: String(session._id),
+    code: session.code ?? null,
     status: session.status,
     merchant: session.merchant ?? null,
     date: session.date ? session.date.toISOString().slice(0, 10) : null,
@@ -188,5 +205,36 @@ export class SessionService {
     session.lineItems.pull(lineItemId);
     await session.save();
     return toSessionView(session);
+  }
+
+  async confirmSession(session: HydratedDocument<Session>) {
+    if (session.status !== 'draft')
+      return status(409, SessionModel.sessionNotDraft.const);
+
+    if (session.lineItems.length === 0)
+      return status(409, SessionModel.sessionEmpty.const);
+
+    if (
+      session.lineItems.some(
+        (item) => item.aiConfidence < LOW_CONFIDENCE_THRESHOLD,
+      )
+    )
+      return status(409, SessionModel.sessionNeedsReview.const);
+
+    session.status = 'open';
+    for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
+      session.code = generateSessionCode();
+      try {
+        await session.save();
+        return toSessionView(session);
+      } catch (error) {
+        if (!isDuplicateKeyError(error, 'code')) throw error;
+      }
+    }
+
+    console.error(
+      `Exhausted ${CODE_ATTEMPTS} code attempts for session ${session._id}`,
+    );
+    return status(500, SessionModel.codeGenerationFailed.const);
   }
 }

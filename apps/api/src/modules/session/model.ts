@@ -13,6 +13,7 @@ const lineItemView = t.Object({
 
 const sessionView = t.Object({
   id: t.String(),
+  code: t.Nullable(t.String()),
   status: t.String(),
   merchant: t.Nullable(t.String()),
   date: t.Nullable(t.String()),
@@ -52,6 +53,9 @@ export const SessionModel = {
   internalError: t.Literal('Unexpected server error'),
   lineItemNotFound: t.Literal('Line item not found'),
   sessionNotDraft: t.Literal('Session is not editable'),
+  sessionEmpty: t.Literal('Session has no items to split'),
+  sessionNeedsReview: t.Literal('Some items still need review'),
+  codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 
 export type SessionModel = {

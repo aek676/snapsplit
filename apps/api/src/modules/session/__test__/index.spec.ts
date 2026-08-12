@@ -531,3 +531,80 @@ describe('DELETE /sessions/:sessionId/line-items/:lineItemId', () => {
     expect(session.lineItems).toHaveLength(1);
   });
 });
+
+describe('POST /sessions/:sessionId/confirm', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    spyOn(Session.prototype, 'save').mockImplementation(async function (
+      this: unknown,
+    ) {
+      return this;
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('returns 200 with the published session and its code', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/confirm`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe('open');
+    expect(body.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+  });
+
+  it('returns 403 for a guest token and leaves the session in draft', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/confirm`, {
+        method: 'POST',
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(session.status).toBe('draft');
+    expect(session.code).toBeUndefined();
+  });
+
+  it('returns 401 without a token', async () => {
+    const session = draftSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/confirm`, {
+        method: 'POST',
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(session.status).toBe('draft');
+  });
+
+  it('returns 409 when the session is already published', async () => {
+    const session = draftSession();
+    session.status = 'open';
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/confirm`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not editable');
+  });
+});
