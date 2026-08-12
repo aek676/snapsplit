@@ -1,5 +1,5 @@
 import { useForm } from '@tanstack/react-form';
-import { Minus, Pencil, Plus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from 'shadcn-ui/button';
@@ -17,41 +17,37 @@ import { Input } from 'shadcn-ui/input';
 
 import { CurrencyInput } from '@/components/ui/form/currency-input';
 import {
-  updateLineItemDraftInputSchema,
-  useUpdateLineItem,
-} from '@/features/session/line-item/api/update-line-item';
-import type { LineItem } from '@/types/session';
+  addLineItemDraftInputSchema,
+  useAddLineItem,
+} from '@/features/session/line-item/api/add-line-item';
 
-interface EditLineItemProps {
+interface AddLineItemProps {
   sessionId: string;
-  lineItem: LineItem;
   currency: string;
 }
 
-export function EditLineItem({
-  sessionId,
-  lineItem,
-  currency,
-}: EditLineItemProps) {
+export function AddLineItem({ sessionId, currency }: AddLineItemProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        aria-label={`Edit ${lineItem.name}`}
         render={
-          <Button variant="ghost" size="icon-lg">
-            <Pencil />
-          </Button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-4 py-5 text-primary transition-colors hover:bg-primary-tint/50 active:bg-primary-tint"
+          >
+            <Plus size={20} />
+            <span className="item-name">Add item by hand</span>
+          </button>
         }
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit item</DialogTitle>
+          <DialogTitle>Add item</DialogTitle>
         </DialogHeader>
-        <EditLineItemForm
+        <AddLineItemForm
           sessionId={sessionId}
-          lineItem={lineItem}
           currency={currency}
           onSaved={() => setOpen(false)}
         />
@@ -60,34 +56,29 @@ export function EditLineItem({
   );
 }
 
-type EditLineItemFormProps = {
+type AddLineItemFormProps = {
   sessionId: string;
-  lineItem: LineItem;
   currency: string;
   onSaved: () => void;
 };
 
-function EditLineItemForm({
+function AddLineItemForm({
   sessionId,
-  lineItem,
   currency,
   onSaved,
-}: EditLineItemFormProps) {
-  const updateLineItem = useUpdateLineItem({ sessionId });
+}: AddLineItemFormProps) {
+  const addLineItem = useAddLineItem({ sessionId });
   const form = useForm({
     defaultValues: {
-      name: lineItem.name,
-      unitPriceCents: lineItem.unitPriceCents,
-      quantity: lineItem.quantity,
+      name: '',
+      unitPriceCents: 0,
+      quantity: 1,
     },
     validators: {
-      onSubmit: updateLineItemDraftInputSchema,
+      onSubmit: addLineItemDraftInputSchema,
     },
     onSubmit: async ({ value }) => {
-      updateLineItem.mutate(
-        { sessionId, lineItemId: lineItem.id, data: value },
-        { onSuccess: onSaved },
-      );
+      addLineItem.mutate({ sessionId, data: value }, { onSuccess: onSaved });
     },
   });
 
@@ -194,7 +185,7 @@ function EditLineItemForm({
             <Button
               type="submit"
               size="xl"
-              disabled={!canSubmit || updateLineItem.isPending}
+              disabled={!canSubmit || addLineItem.isPending}
             >
               Save
             </Button>
