@@ -9,10 +9,10 @@ import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
 import { formatCents, formatCentsBare } from '@/utils/money';
 
-interface ReviewLayoutProps {
+type ReviewLayoutProps = {
   session: Session;
   children?: React.ReactNode;
-}
+};
 
 export function ReviewLayout({ session, children }: ReviewLayoutProps) {
   return (

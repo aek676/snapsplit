@@ -13,14 +13,14 @@ export function formatCentsBare(cents: number, currency: string): string {
   }).format(cents / 100);
 }
 
-export interface CurrencyFormat {
+export type CurrencyFormat = {
   symbol: string;
   prefix: string;
   suffix: string;
   thousandSeparator: string;
   decimalSeparator: string;
   decimalScale: number;
-}
+};
 
 const SAMPLE = 1234567.89;
 

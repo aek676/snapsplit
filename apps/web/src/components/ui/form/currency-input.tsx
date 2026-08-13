@@ -2,12 +2,12 @@ import { NumericFormat } from 'react-number-format';
 
 import { currencyFormat } from '@/utils/money';
 
-interface CurrencyInputProps {
+type CurrencyInputProps = {
   id?: string;
   currency: string;
   value: number;
   onChange: (cents: number) => void;
-}
+};
 
 export function CurrencyInput({
   id,

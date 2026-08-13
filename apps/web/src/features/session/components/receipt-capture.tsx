@@ -84,11 +84,11 @@ function AnalyzingView({ imageUrl }: { imageUrl: string }) {
   );
 }
 
-interface CaptureViewProps {
+type CaptureViewProps = {
   inputRef: React.RefObject<HTMLInputElement | null>;
   onCapture: (image: File) => void;
   errorMessage: string | null;
-}
+};
 
 function CaptureView({ inputRef, onCapture, errorMessage }: CaptureViewProps) {
   return (

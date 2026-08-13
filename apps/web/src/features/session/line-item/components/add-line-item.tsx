@@ -21,10 +21,10 @@ import {
   useAddLineItem,
 } from '@/features/session/line-item/api/add-line-item';
 
-interface AddLineItemProps {
+type AddLineItemProps = {
   sessionId: string;
   currency: string;
-}
+};
 
 export function AddLineItem({ sessionId, currency }: AddLineItemProps) {
   const [open, setOpen] = useState(false);

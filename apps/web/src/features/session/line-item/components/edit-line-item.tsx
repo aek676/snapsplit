@@ -22,11 +22,11 @@ import {
 } from '@/features/session/line-item/api/update-line-item';
 import type { LineItem } from '@/types/session';
 
-interface EditLineItemProps {
+type EditLineItemProps = {
   sessionId: string;
   lineItem: LineItem;
   currency: string;
-}
+};
 
 export function EditLineItem({
   sessionId,
