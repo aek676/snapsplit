@@ -1,4 +1,8 @@
-import { LOW_CONFIDENCE_THRESHOLD } from '@repo/shared-types';
+import {
+  LOW_CONFIDENCE_THRESHOLD,
+  SESSION_CODE_ALPHABET,
+  SESSION_CODE_LENGTH,
+} from '@repo/shared-types';
 import { status } from 'elysia';
 import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
@@ -13,16 +17,14 @@ import {
 } from '../receipt/service';
 import { SessionModel } from './model';
 
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const CODE_LENGTH = 8;
 const CODE_ATTEMPTS = 5;
 
 export function generateSessionCode() {
-  const bytes = new Uint8Array(CODE_LENGTH);
+  const bytes = new Uint8Array(SESSION_CODE_LENGTH);
   crypto.getRandomValues(bytes);
   return Array.from(
     bytes,
-    (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length],
+    (byte) => SESSION_CODE_ALPHABET[byte % SESSION_CODE_ALPHABET.length],
   ).join('');
 }
 

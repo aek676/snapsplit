@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { objectId } from '../../common/model';
+import { objectId, sessionCode } from '../../common/model';
 import { STATUS, TOTAL_SOURCE, type TotalSource } from '../../schemas';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
 
@@ -63,7 +63,7 @@ export const SessionModel = {
     t.Object({ auth: authView }),
   ]),
   joinBody: t.Object({
-    code: t.String({ pattern: '^[A-HJ-NP-Za-hj-np-z2-9]{8}$' }),
+    code: sessionCode,
     name: t.String({ minLength: 1, maxLength: 50 }),
   }),
   joinResponse: t.Composite([
