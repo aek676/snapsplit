@@ -754,7 +754,10 @@ describe('POST /sessions/join/:code', () => {
     );
 
     expect(res.status).toBe(422);
-    expect(await res.json()).toMatchObject({ type: 'validation', on: 'params' });
+    expect(await res.json()).toMatchObject({
+      type: 'validation',
+      on: 'params',
+    });
   });
 
   it.each([
