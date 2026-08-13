@@ -209,3 +209,31 @@ describe('joining a session that cannot be joined', () => {
     expect(await res.text()).toBe('Session not found');
   });
 });
+
+describe('guessing share codes', () => {
+  it('throttles a caller after 10 attempts in the window', async () => {
+    const attempts = [];
+    for (let attempt = 0; attempt < 10; attempt++)
+      attempts.push((await join('ABCDEFGH', 'Mallory')).status);
+
+    expect(attempts).toEqual(Array(10).fill(404));
+
+    const res = await join('ABCDEFGH', 'Mallory');
+
+    expect(res.status).toBe(429);
+    expect(await res.text()).toBe(
+      'Too many join attempts. Try again in a minute.',
+    );
+  });
+
+  it('keeps a throttled caller out of a code that does exist', async () => {
+    const session = await createOpenSession();
+    for (let attempt = 0; attempt < 10; attempt++)
+      await join('ABCDEFGH', 'Mallory');
+
+    const res = await join(session.code, 'Mallory');
+
+    expect(res.status).toBe(429);
+    expect(await storedParticipants(session.id)).toHaveLength(1);
+  });
+});

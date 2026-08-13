@@ -8,6 +8,7 @@ import {
   spyOn,
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
+import { joinRateLimitContext } from '../../../plugins/rate-limit';
 import { Session } from '../../../schemas';
 import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
@@ -728,8 +729,9 @@ describe('POST /sessions/:sessionId/confirm', () => {
 });
 
 describe('POST /sessions/join/:code', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     spyOn(console, 'error').mockImplementation(() => {});
+    await joinRateLimitContext.reset();
   });
 
   afterEach(() => {

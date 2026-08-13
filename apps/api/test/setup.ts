@@ -6,6 +6,7 @@ import {
 } from '@testcontainers/mongodb';
 import mongoose from 'mongoose';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import { joinRateLimitContext } from '../src/plugins/rate-limit';
 import { createReceiptStorage } from '../src/storage';
 import type { ObjectStorage } from '../src/storage/object-storage';
 
@@ -55,7 +56,11 @@ beforeAll(
 );
 
 beforeEach(async () => {
-  await Promise.all([resetDatabase(), resetBucket()]);
+  await Promise.all([
+    resetDatabase(),
+    resetBucket(),
+    joinRateLimitContext.reset(),
+  ]);
 });
 
 afterAll(async () => {
