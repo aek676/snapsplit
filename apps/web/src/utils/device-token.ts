@@ -1,8 +1,9 @@
-import { isObjectId } from '@repo/shared-types';
+import { isObjectId, isSessionCode } from '@repo/shared-types';
 import { z } from 'zod';
 import type { SessionAuth } from '@/types/session';
 
 const PREFIX = 'snapsplit.dt.';
+const CODE_PREFIX = 'snapsplit.code.';
 
 export class DeviceTokenStorageError extends Error {
   constructor() {
@@ -55,7 +56,6 @@ export function getToken(sessionId: string): SessionAuth | null {
   return parse(store.getItem(key));
 }
 
-/** Returns whether the token was persisted: without it the session is lost. */
 export function setToken(sessionId: string, auth: SessionAuth): boolean {
   const key = keyFor(sessionId);
   if (!key) return false;
@@ -70,6 +70,27 @@ export function setToken(sessionId: string, auth: SessionAuth): boolean {
   } catch {
     return false;
   }
+}
+
+function codeKeyFor(code: string): string | null {
+  return isSessionCode(code) ? `${CODE_PREFIX}${code.toUpperCase()}` : null;
+}
+
+export function rememberSessionCode(code: string, sessionId: string): void {
+  const key = codeKeyFor(code);
+  if (!key || !isObjectId(sessionId)) return;
+
+  try {
+    storage()?.setItem(key, sessionId);
+  } catch {}
+}
+
+export function sessionIdForCode(code: string): string | null {
+  const key = codeKeyFor(code);
+  if (!key) return null;
+
+  const sessionId = storage()?.getItem(key);
+  return sessionId && isObjectId(sessionId) ? sessionId : null;
 }
 
 export function clearToken(sessionId: string): void {

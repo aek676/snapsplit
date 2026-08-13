@@ -1,13 +1,21 @@
-import { isObjectId } from '@repo/shared-types';
+import { isObjectId, isSessionCode } from '@repo/shared-types';
 import { z } from 'zod';
 import {
   clearToken,
   getToken,
+  rememberSessionCode,
   sessionAuthSchema,
+  sessionIdForCode,
   setToken,
 } from '@/utils/device-token';
 
 const SESSION_PATH = /^\/sessions\/([^/]+)/;
+const JOIN_PATH = /^\/sessions\/join\/([^/?]+)/;
+
+const codeCarrierSchema = z.object({
+  id: z.string().refine(isObjectId),
+  code: z.string().refine(isSessionCode),
+});
 
 const authCarrierSchema = z.object({
   id: z.string().refine(isObjectId),
@@ -20,6 +28,11 @@ export async function persistAuth(response: Response): Promise<boolean> {
     body = await response.clone().json();
   } catch {
     return true;
+  }
+
+  const withCode = codeCarrierSchema.safeParse(body);
+  if (withCode.success) {
+    rememberSessionCode(withCode.data.code, withCode.data.id);
   }
 
   const carrier = authCarrierSchema.safeParse(body);
@@ -48,7 +61,8 @@ export function sessionIdFromUrl(url: string): string | null {
 }
 
 export function authHeader(path: string): Record<string, string> | undefined {
-  const sessionId = sessionIdFromPath(path);
+  const code = JOIN_PATH.exec(path)?.[1];
+  const sessionId = code ? sessionIdForCode(code) : sessionIdFromPath(path);
   if (!sessionId) return undefined;
 
   const auth = getToken(sessionId);
