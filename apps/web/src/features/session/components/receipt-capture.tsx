@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from 'shadcn-ui/alert';
 import { Button } from 'shadcn-ui/button';
 import { Card, CardContent } from 'shadcn-ui/card';
 import { Spinner } from 'shadcn-ui/spinner';
-import heroIllustration from '@/assets/hero-illustration.jpg';
+import { HeroIllustration } from '@/components/hero-illustration';
 import { Wordmark } from '@/components/wordmark';
 import {
   analyzeReceiptSchema,
@@ -99,11 +99,7 @@ function CaptureView({ inputRef, onCapture, errorMessage }: CaptureViewProps) {
 
       <main className="flex flex-1 flex-col px-5 pt-6">
         <section className="mb-8 overflow-hidden rounded-xl bg-surface shadow-(--shadow-soft)">
-          <img
-            src={heroIllustration}
-            alt="Friends around a cafe table sharing a receipt"
-            className="h-auto w-full object-cover"
-          />
+          <HeroIllustration />
           <div className="flex flex-col gap-4 p-6 text-center sm:text-left">
             <h1 className="hero-title">Split the bill, snap it</h1>
             <p className="body-text text-content-secondary">
