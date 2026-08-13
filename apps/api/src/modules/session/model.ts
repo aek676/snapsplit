@@ -88,7 +88,6 @@ export const SessionModel = {
   sessionNeedsReview: t.Literal('Some items still need review'),
   sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
   sessionNotFound: t.Literal('Session not found'),
-  sessionNotOpen: t.Literal('Session is not open for joining'),
   codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 

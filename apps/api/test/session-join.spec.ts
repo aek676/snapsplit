@@ -199,13 +199,13 @@ describe('joining a session that cannot be joined', () => {
     expect(await res.text()).toBe('Session not found');
   });
 
-  it('returns 409 once the session is closed', async () => {
+  it('answers a closed session exactly like an unknown code', async () => {
     const session = await createOpenSession();
     await Session.updateOne({ code: session.code }, { status: 'closed' });
 
     const res = await join(session.code, 'Marta');
 
-    expect(res.status).toBe(409);
-    expect(await res.text()).toBe('Session is not open for joining');
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Session not found');
   });
 });

@@ -309,11 +309,10 @@ export class SessionService {
       { returnDocument: 'after' },
     );
 
-    if (!session) {
-      const exists = await Session.exists({ code });
-      if (!exists) return status(404, SessionModel.sessionNotFound.const);
-      return status(409, SessionModel.sessionNotOpen.const);
-    }
+    // A session that exists but is closed answers the same as one that never
+    // existed: telling them apart would confirm which codes are real to anyone
+    // probing them.
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
 
     const guest = session.participants[session.participants.length - 1];
     return {

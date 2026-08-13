@@ -184,7 +184,6 @@ export function createSessionModule(service: SessionService) {
         response: {
           200: SessionModel.joinResponse,
           404: SessionModel.sessionNotFound,
-          409: SessionModel.sessionNotOpen,
           500: SessionModel.internalError,
         },
         detail: {
