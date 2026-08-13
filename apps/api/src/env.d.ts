@@ -7,5 +7,6 @@ declare module 'bun' {
     RECEIPT_EXTRACTION_MAX_ATTEMPTS?: string;
     GCS_BUCKET: string;
     GCS_EMULATOR_HOST?: string;
+    TRUST_PROXY?: string;
   }
 }

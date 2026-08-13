@@ -25,6 +25,9 @@
       "path": "../api"
     },
     {
+      "path": "../../libs/shadcn-ui-utils/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared-types/tsconfig.lib.json"
     },
     {

@@ -4,11 +4,13 @@ import { failToConnect, serve } from '@/testing/respond';
 import {
   DeviceTokenStorageError,
   getToken,
+  sessionIdForCode,
   setToken,
 } from '@/utils/device-token';
 
 const SESSION_ID = '507f1f77bcf86cd799439011';
 const NEW_SESSION_ID = '507f191e810c19729de860ea';
+const SESSION_CODE = 'ABCD2345';
 
 const auth = { participantId: 'participant-1', token: 'token-1' };
 
@@ -57,7 +59,7 @@ describe('api client', () => {
   it('reports a 401 on a route that names no session', async () => {
     serve(401, 'Unauthorized');
 
-    await api.sessions({ sessionId: 'join' }).get();
+    await api.sessions({ sessionId: 'not-an-object-id' }).get();
 
     expect(getToken(SESSION_ID)).toEqual(auth);
     expect(assign).not.toHaveBeenCalled();
@@ -151,6 +153,32 @@ describe('api client', () => {
 
     expect(getToken(NEW_SESSION_ID)).toEqual(auth);
     expect(toastAdd).not.toHaveBeenCalled();
+  });
+
+  it('remembers the code a response hands back, even without auth', async () => {
+    serve(200, { id: SESSION_ID, code: SESSION_CODE });
+
+    await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(sessionIdForCode(SESSION_CODE)).toBe(SESSION_ID);
+    expect(toastAdd).not.toHaveBeenCalled();
+  });
+
+  it('stores both the token and the code of a join response', async () => {
+    serve(200, { id: NEW_SESSION_ID, code: SESSION_CODE, auth });
+
+    await api.sessions({ sessionId: NEW_SESSION_ID }).get();
+
+    expect(getToken(NEW_SESSION_ID)).toEqual(auth);
+    expect(sessionIdForCode(SESSION_CODE)).toBe(NEW_SESSION_ID);
+  });
+
+  it('ignores a code that does not look like one', async () => {
+    serve(200, { id: SESSION_ID, code: 'not-a-code' });
+
+    await api.sessions({ sessionId: SESSION_ID }).get();
+
+    expect(sessionIdForCode('not-a-code')).toBeNull();
   });
 
   it('fails the call and reports it when the token cannot be stored', async () => {

@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
+import { joinRateLimit } from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
 import { SessionModel } from './model';
@@ -12,6 +13,7 @@ export function createSessionModule(service: SessionService) {
     name: 'sessions',
   })
     .use(authPlugin)
+    .use(joinRateLimit)
     .onError(({ code, error, status }) => {
       if (code === 'VALIDATION') return;
       console.error('Unexpected error in sessions module:', error);
@@ -169,6 +171,26 @@ export function createSessionModule(service: SessionService) {
         },
         detail: {
           summary: 'Confirm a draft session and publish its share code',
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .post(
+      '/join/:code',
+      ({ params, body, deviceToken }) =>
+        service.joinSession(params.code, body.name, deviceToken),
+      {
+        deviceToken: true,
+        params: SessionModel.joinParams,
+        body: SessionModel.joinBody,
+        response: {
+          200: SessionModel.joinResponse,
+          404: SessionModel.sessionNotFound,
+          429: SessionModel.tooManyJoinAttempts,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Join a session by share code',
           tags: ['Sessions'],
         },
       },

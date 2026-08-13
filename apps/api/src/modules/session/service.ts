@@ -1,4 +1,8 @@
-import { LOW_CONFIDENCE_THRESHOLD } from '@repo/shared-types';
+import {
+  LOW_CONFIDENCE_THRESHOLD,
+  SESSION_CODE_ALPHABET,
+  SESSION_CODE_LENGTH,
+} from '@repo/shared-types';
 import { status } from 'elysia';
 import type { HydratedDocument } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
@@ -13,16 +17,14 @@ import {
 } from '../receipt/service';
 import { SessionModel } from './model';
 
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const CODE_LENGTH = 8;
 const CODE_ATTEMPTS = 5;
 
 export function generateSessionCode() {
-  const bytes = new Uint8Array(CODE_LENGTH);
+  const bytes = new Uint8Array(SESSION_CODE_LENGTH);
   crypto.getRandomValues(bytes);
   return Array.from(
     bytes,
-    (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length],
+    (byte) => SESSION_CODE_ALPHABET[byte % SESSION_CODE_ALPHABET.length],
   ).join('');
 }
 
@@ -269,5 +271,62 @@ export class SessionService {
       `Exhausted ${CODE_ATTEMPTS} code attempts for session ${session._id}`,
     );
     return status(500, SessionModel.codeGenerationFailed.const);
+  }
+
+  async joinSession(rawCode: string, name: string, callerToken?: string) {
+    const code = rawCode.toUpperCase();
+    if (callerToken) {
+      const callerTokenHash = hashToken(callerToken);
+      const session =
+        (await Session.findOneAndUpdate(
+          {
+            code,
+            status: 'open',
+            'participants.deviceTokenHash': callerTokenHash,
+          },
+          { $set: { 'participants.$.name': name } },
+          { returnDocument: 'after' },
+        ).select('+participants.deviceTokenHash')) ??
+        // Only reached when the session is not open, since the update above
+        // matches any open session the bearer belongs to. Membership is proven,
+        // so the anti-enumeration 404 below is not needed here — but a session
+        // that is no longer open is immutable, hence no rename.
+        (await Session.findOne({
+          code,
+          'participants.deviceTokenHash': callerTokenHash,
+        }).select('+participants.deviceTokenHash'));
+
+      if (session) {
+        const me = session.participants.find(
+          (participant) => participant.deviceTokenHash === callerTokenHash,
+        );
+        if (me) {
+          return {
+            ...toSessionView(session),
+            auth: { participantId: String(me._id) },
+          };
+        }
+      }
+    }
+
+    const token = generateToken();
+    const deviceTokenHash = hashToken(token);
+
+    const session = await Session.findOneAndUpdate(
+      { code, status: 'open' },
+      { $push: { participants: { name, deviceTokenHash, isOwner: false } } },
+      { returnDocument: 'after' },
+    );
+
+    // To anyone who is not already a participant, a session that exists but is
+    // closed answers the same as one that never existed: telling them apart
+    // would confirm which codes are real to anyone probing them.
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
+
+    const guest = session.participants[session.participants.length - 1];
+    return {
+      ...toSessionView(session),
+      auth: { participantId: String(guest._id), token },
+    };
   }
 }

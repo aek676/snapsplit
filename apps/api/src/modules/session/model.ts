@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { objectId } from '../../common/model';
+import { objectId, sessionCode } from '../../common/model';
 import { STATUS, TOTAL_SOURCE, type TotalSource } from '../../schemas';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
 
@@ -62,6 +62,19 @@ export const SessionModel = {
     sessionView,
     t.Object({ auth: authView }),
   ]),
+  joinParams: t.Object({ code: sessionCode }),
+  joinBody: t.Object({
+    name: t.String({ minLength: 1, maxLength: 50 }),
+  }),
+  joinResponse: t.Composite([
+    sessionView,
+    t.Object({
+      auth: t.Composite([
+        t.Pick(authView, ['participantId']),
+        t.Partial(t.Pick(authView, ['token'])),
+      ]),
+    }),
+  ]),
   noContent: t.Void(),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
@@ -74,6 +87,10 @@ export const SessionModel = {
   sessionEmpty: t.Literal('Session has no items to split'),
   sessionNeedsReview: t.Literal('Some items still need review'),
   sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
+  sessionNotFound: t.Literal('Session not found'),
+  tooManyJoinAttempts: t.Literal(
+    'Too many join attempts. Try again in a minute.',
+  ),
   codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 

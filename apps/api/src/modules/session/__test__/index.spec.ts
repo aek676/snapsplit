@@ -8,6 +8,7 @@ import {
   spyOn,
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
+import { joinRateLimitContext } from '../../../plugins/rate-limit';
 import { Session } from '../../../schemas';
 import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
@@ -724,5 +725,72 @@ describe('POST /sessions/:sessionId/confirm', () => {
 
     expect(res.status).toBe(409);
     expect(await res.text()).toBe('Session is not editable');
+  });
+});
+
+describe('POST /sessions/join/:code', () => {
+  beforeEach(async () => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    await joinRateLimitContext.reset();
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  const CODE = 'ABCDEFGH';
+  const joinBody = { name: 'Marta' };
+
+  it.each([
+    ['a short code', 'ABC'],
+    ['a code with excluded characters', 'ABCDEFG0'],
+  ])('returns 422 for %s', async (_label, code) => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${code}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      type: 'validation',
+      on: 'params',
+    });
+  });
+
+  it.each([
+    ['an empty name', { name: '' }],
+    ['a missing name', {}],
+  ])('returns 422 for %s', async (_label, body) => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${CODE}`, { method: 'POST', body, token: null }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ type: 'validation', on: 'body' });
+  });
+
+  it('maps an unexpected error to 500 via onError', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockImplementation((() =>
+      Promise.reject(new Error('mongo down'))) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${CODE}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('Unexpected server error');
+    expect(console.error).toHaveBeenCalled();
   });
 });

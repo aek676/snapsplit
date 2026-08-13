@@ -44,6 +44,55 @@
   }
 }
 
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered entrance: each child enters 100ms after the one above it. */
+@utility stagger-children {
+  & > * {
+    opacity: 0;
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+  & > *:nth-child(1) {
+    animation-delay: 100ms;
+  }
+  & > *:nth-child(2) {
+    animation-delay: 200ms;
+  }
+  & > *:nth-child(3) {
+    animation-delay: 300ms;
+  }
+  & > *:nth-child(4) {
+    animation-delay: 400ms;
+  }
+  & > *:nth-child(5) {
+    animation-delay: 500ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-children > * {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@utility surface-card {
+  width: 100%;
+  border-radius: var(--radius-2xl);
+  background-color: var(--color-surface);
+  padding: calc(var(--spacing) * 4);
+  box-shadow: var(--shadow-soft);
+}
+
 @utility hero-title {
   font-family: var(--font-serif);
   font-size: 32px;

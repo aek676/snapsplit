@@ -6,7 +6,7 @@ import { Session } from '../schemas';
 
 function bearerFrom(authorization?: string) {
   const [scheme, token] = authorization?.split(' ') ?? [];
-  return scheme?.toLowerCase() === 'bearer' && token ? token : null;
+  return scheme?.toLowerCase() === 'bearer' && token ? token : undefined;
 }
 
 const DEVICE_TOKEN_PROJECTION = '+participants.deviceTokenHash';
@@ -18,6 +18,11 @@ export function findSessionByDeviceTokenHash(deviceTokenHash: string) {
 }
 
 export const authPlugin = new Elysia({ name: 'auth' })
+  .macro('deviceToken', {
+    resolve: ({ headers }) => ({
+      deviceToken: bearerFrom(headers.authorization),
+    }),
+  })
   .macro('auth', {
     params: t.Object({ sessionId: objectId }),
     async resolve({ headers, params }) {
