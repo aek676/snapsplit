@@ -62,8 +62,8 @@ export const SessionModel = {
     sessionView,
     t.Object({ auth: authView }),
   ]),
+  joinParams: t.Object({ code: sessionCode }),
   joinBody: t.Object({
-    code: sessionCode,
     name: t.String({ minLength: 1, maxLength: 50 }),
   }),
   joinResponse: t.Composite([

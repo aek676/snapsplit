@@ -36,13 +36,13 @@ async function createOpenSession() {
 
 function join(code: string, name: string, token?: string) {
   return app.handle(
-    new Request('http://localhost/sessions/join', {
+    new Request(`http://localhost/sessions/join/${code}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ code, name }),
+      body: JSON.stringify({ name }),
     }),
   );
 }

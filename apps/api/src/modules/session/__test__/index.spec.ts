@@ -727,7 +727,7 @@ describe('POST /sessions/:sessionId/confirm', () => {
   });
 });
 
-describe('POST /sessions/join', () => {
+describe('POST /sessions/join/:code', () => {
   beforeEach(() => {
     spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -736,18 +736,35 @@ describe('POST /sessions/join', () => {
     mock.restore();
   });
 
-  const joinBody = { code: 'ABCDEFGH', name: 'Marta' };
+  const CODE = 'ABCDEFGH';
+  const joinBody = { name: 'Marta' };
 
   it.each([
-    ['a short code', { ...joinBody, code: 'ABC' }],
-    ['a code with excluded characters', { ...joinBody, code: 'ABCDEFG0' }],
-    ['an empty name', { ...joinBody, name: '' }],
-    ['a missing name', { code: joinBody.code }],
+    ['a short code', 'ABC'],
+    ['a code with excluded characters', 'ABCDEFG0'],
+  ])('returns 422 for %s', async (_label, code) => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${code}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ type: 'validation', on: 'params' });
+  });
+
+  it.each([
+    ['an empty name', { name: '' }],
+    ['a missing name', {}],
   ])('returns 422 for %s', async (_label, body) => {
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      request('/sessions/join', { method: 'POST', body, token: null }),
+      request(`/sessions/join/${CODE}`, { method: 'POST', body, token: null }),
     );
 
     expect(res.status).toBe(422);
@@ -760,7 +777,11 @@ describe('POST /sessions/join', () => {
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
-      request('/sessions/join', { method: 'POST', body: joinBody, token: null }),
+      request(`/sessions/join/${CODE}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
     );
 
     expect(res.status).toBe(500);

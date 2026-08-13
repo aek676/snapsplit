@@ -174,12 +174,13 @@ export function createSessionModule(service: SessionService) {
       },
     )
     .post(
-      '/join',
-      ({ body, headers }) => {
+      '/join/:code',
+      ({ params, body, headers }) => {
         const bearer = headers.authorization?.match(/^Bearer (.+)$/)?.[1];
-        return service.joinSession(body.code, body.name, bearer);
+        return service.joinSession(params.code, body.name, bearer);
       },
       {
+        params: SessionModel.joinParams,
         body: SessionModel.joinBody,
         response: {
           200: SessionModel.joinResponse,
