@@ -56,6 +56,12 @@
             "noReExportAll": "error"
           },
           "style": {
+            "useConsistentTypeDefinitions": {
+              "level": "error",
+              "options": {
+                "style": "type"
+              }
+            },
             "useFilenamingConvention": {
               "level": "error",
               "options": {

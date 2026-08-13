@@ -1,10 +1,10 @@
 import type { Session } from '@/types/session';
 
-export interface ReceiptTotals {
+export type ReceiptTotals = {
   itemsTotalCents: number;
   discrepancyCents: number;
   matches: boolean;
-}
+};
 
 export function receiptTotals(
   session: Pick<Session, 'lineItems' | 'totalCents'>,
