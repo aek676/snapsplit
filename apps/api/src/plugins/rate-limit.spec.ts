@@ -46,27 +46,35 @@ describe('client key', () => {
   } as unknown as Parameters<ReturnType<typeof createClientKey>>[1];
 
   it('uses the socket peer', () => {
-    expect(createClientKey(false)(requestFrom(), server, {})).toBe(PEER);
+    expect(createClientKey(0)(requestFrom(), server, {})).toBe(PEER);
   });
 
-  it('ignores x-forwarded-for unless the proxy is trusted', () => {
-    expect(createClientKey(false)(requestFrom(FORWARDED), server, {})).toBe(
-      PEER,
-    );
+  it('ignores x-forwarded-for unless a proxy is trusted', () => {
+    expect(createClientKey(0)(requestFrom(FORWARDED), server, {})).toBe(PEER);
   });
 
-  it('takes the last forwarded hop when the proxy is trusted', () => {
+  it('takes the last forwarded hop behind one appending proxy', () => {
     expect(
-      createClientKey(true)(requestFrom(`10.0.0.1, ${FORWARDED}`), server, {}),
+      createClientKey(1)(requestFrom(`10.0.0.1, ${FORWARDED}`), server, {}),
+    ).toBe(FORWARDED);
+  });
+
+  it('takes the next-to-last hop when two proxies are trusted', () => {
+    expect(
+      createClientKey(2)(requestFrom(`${FORWARDED}, 10.0.0.1`), server, {}),
     ).toBe(FORWARDED);
   });
 
   it('falls back to the peer when a trusted proxy sends no header', () => {
-    expect(createClientKey(true)(requestFrom(), server, {})).toBe(PEER);
+    expect(createClientKey(1)(requestFrom(), server, {})).toBe(PEER);
+  });
+
+  it('falls back to the peer when the header lists fewer hops than trusted', () => {
+    expect(createClientKey(2)(requestFrom(FORWARDED), server, {})).toBe(PEER);
   });
 
   it('buckets callers together when there is no server to ask', () => {
-    expect(createClientKey(false)(requestFrom(), null, {})).toBe('unknown');
+    expect(createClientKey(0)(requestFrom(), null, {})).toBe('unknown');
   });
 });
 

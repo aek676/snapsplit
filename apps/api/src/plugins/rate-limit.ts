@@ -6,14 +6,21 @@ const MAX_ATTEMPTS = 10;
 
 const UNKNOWN_CLIENT = 'unknown';
 
-export function createClientKey(trustProxy: boolean): Generator {
+// TRUST_PROXY counts the proxies in front of the API rather than acting as a
+// boolean, because platforms disagree on where the client sits in
+// x-forwarded-for: appending proxies (nginx, ALB, Cloudflare) leave it as the
+// last entry, while Fly.io and Google's HTTP(S) load balancer add their own
+// address after it. Each trusted hop moves the client one entry further from
+// the right; a header with fewer entries than that falls back to the peer.
+export function createClientKey(trustedHops: number): Generator {
   return (request, server) => {
-    if (trustProxy) {
+    if (trustedHops > 0) {
       const forwarded = request.headers
         .get('x-forwarded-for')
         ?.split(',')
-        .at(-1)
-        ?.trim();
+        .map((hop) => hop.trim())
+        .filter(Boolean)
+        .at(-trustedHops);
       if (forwarded) return forwarded;
     }
 
@@ -21,7 +28,10 @@ export function createClientKey(trustProxy: boolean): Generator {
   };
 }
 
-const clientKey = createClientKey(Bun.env.TRUST_PROXY === '1');
+const trustedHops = Number(Bun.env.TRUST_PROXY);
+const clientKey = createClientKey(
+  Number.isInteger(trustedHops) && trustedHops > 0 ? trustedHops : 0,
+);
 
 export const joinRateLimitContext = new DefaultContext();
 
