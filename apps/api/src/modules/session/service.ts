@@ -277,15 +277,24 @@ export class SessionService {
     const code = rawCode.toUpperCase();
     if (callerToken) {
       const callerTokenHash = hashToken(callerToken);
-      const session = await Session.findOneAndUpdate(
-        {
+      const session =
+        (await Session.findOneAndUpdate(
+          {
+            code,
+            status: 'open',
+            'participants.deviceTokenHash': callerTokenHash,
+          },
+          { $set: { 'participants.$.name': name } },
+          { returnDocument: 'after' },
+        ).select('+participants.deviceTokenHash')) ??
+        // Only reached when the session is not open, since the update above
+        // matches any open session the bearer belongs to. Membership is proven,
+        // so the anti-enumeration 404 below is not needed here — but a session
+        // that is no longer open is immutable, hence no rename.
+        (await Session.findOne({
           code,
-          status: 'open',
           'participants.deviceTokenHash': callerTokenHash,
-        },
-        { $set: { 'participants.$.name': name } },
-        { returnDocument: 'after' },
-      ).select('+participants.deviceTokenHash');
+        }).select('+participants.deviceTokenHash'));
 
       if (session) {
         const me = session.participants.find(
@@ -309,9 +318,9 @@ export class SessionService {
       { returnDocument: 'after' },
     );
 
-    // A session that exists but is closed answers the same as one that never
-    // existed: telling them apart would confirm which codes are real to anyone
-    // probing them.
+    // To anyone who is not already a participant, a session that exists but is
+    // closed answers the same as one that never existed: telling them apart
+    // would confirm which codes are real to anyone probing them.
     if (!session) return status(404, SessionModel.sessionNotFound.const);
 
     const guest = session.participants[session.participants.length - 1];

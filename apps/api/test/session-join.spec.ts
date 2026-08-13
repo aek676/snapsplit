@@ -189,6 +189,29 @@ describe('a participant re-joins with their bearer', () => {
     );
     expect(guest?.name).toBe('Marta B.');
   });
+
+  it('lets a participant back into a closed session without renaming them', async () => {
+    const session = await createOpenSession();
+    const first = (await (
+      await join(session.code, 'Marta')
+    ).json()) as JoinResponse;
+    await Session.updateOne({ code: session.code }, { status: 'closed' });
+
+    const res = await join(session.code, 'Marta B.', first.auth.token);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as JoinResponse;
+    expect(body.status).toBe('closed');
+    expect(body.auth.participantId).toBe(first.auth.participantId);
+    expect(body.auth.token).toBeUndefined();
+
+    const participants = await storedParticipants(session.id);
+    expect(participants).toHaveLength(2);
+    const guest = participants.find(
+      (participant) => String(participant._id) === first.auth.participantId,
+    );
+    expect(guest?.name).toBe('Marta');
+  });
 });
 
 describe('joining a session that cannot be joined', () => {
@@ -204,6 +227,17 @@ describe('joining a session that cannot be joined', () => {
     await Session.updateOne({ code: session.code }, { status: 'closed' });
 
     const res = await join(session.code, 'Marta');
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Session not found');
+  });
+
+  it('keeps answering 404 to a bearer from another session once closed', async () => {
+    const session = await createOpenSession();
+    const other = await createOpenSession();
+    await Session.updateOne({ code: session.code }, { status: 'closed' });
+
+    const res = await join(session.code, 'Intruso', other.auth.token);
 
     expect(res.status).toBe(404);
     expect(await res.text()).toBe('Session not found');
