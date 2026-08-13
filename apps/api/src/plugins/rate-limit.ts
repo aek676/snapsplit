@@ -2,7 +2,11 @@ import { DefaultContext, type Generator, rateLimit } from 'elysia-rate-limit';
 import { SessionModel } from '../modules/session/model';
 
 const WINDOW_MS = 60_000;
-const MAX_ATTEMPTS = 10;
+// Generous enough for a whole table arriving through one WiFi or CGNAT
+// address — successful joins and renames spend from the same budget as
+// guesses — while still capping enumeration of the 32^8 code space at a
+// harmless pace.
+const MAX_ATTEMPTS = 30;
 
 const UNKNOWN_CLIENT = 'unknown';
 

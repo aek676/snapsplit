@@ -7,7 +7,7 @@ import {
   joinRateLimitContext,
 } from './rate-limit';
 
-const MAX_ATTEMPTS = 10;
+const MAX_ATTEMPTS = 30;
 
 const app = new Elysia({ prefix: '/sessions' })
   .use(joinRateLimit)
@@ -132,7 +132,7 @@ describe('join rate limit', () => {
   });
 
   it('spends no budget on the other session routes', async () => {
-    for (let attempt = 0; attempt < 20; attempt++)
+    for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt++)
       await app.handle(
         new Request(
           'http://localhost/sessions/507f191e810c19729de860ea/confirm',
@@ -146,7 +146,7 @@ describe('join rate limit', () => {
   });
 
   it('spends no budget on reads of the same path', async () => {
-    for (let attempt = 0; attempt < 20; attempt++)
+    for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt++)
       await app.handle(new Request('http://localhost/sessions/join/ABCDEFGH'));
 
     expect((await join('OPENOPEN')).status).toBe(200);
