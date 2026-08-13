@@ -36,6 +36,7 @@
         "@nx/react": "23.1.1",
         "@nx/vite": "23.1.1",
         "@nx/vitest": "23.1.1",
+        "@nx/web": "23.1.1",
         "@tailwindcss/vite": "^4.3.2",
         "@tanstack/react-devtools": "^0.10.10",
         "@tanstack/react-form-devtools": "^0.2.34",
