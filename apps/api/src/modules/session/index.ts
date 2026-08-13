@@ -175,11 +175,10 @@ export function createSessionModule(service: SessionService) {
     )
     .post(
       '/join/:code',
-      ({ params, body, headers }) => {
-        const bearer = headers.authorization?.match(/^Bearer (.+)$/)?.[1];
-        return service.joinSession(params.code, body.name, bearer);
-      },
+      ({ params, body, deviceToken }) =>
+        service.joinSession(params.code, body.name, deviceToken),
       {
+        deviceToken: true,
         params: SessionModel.joinParams,
         body: SessionModel.joinBody,
         response: {

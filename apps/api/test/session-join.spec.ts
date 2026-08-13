@@ -34,13 +34,13 @@ async function createOpenSession() {
   return { ...draft, code };
 }
 
-function join(code: string, name: string, token?: string) {
+function join(code: string, name: string, token?: string, scheme = 'Bearer') {
   return app.handle(
     new Request(`http://localhost/sessions/join/${code}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(token ? { authorization: `${scheme} ${token}` } : {}),
       },
       body: JSON.stringify({ name }),
     }),
@@ -154,6 +154,18 @@ describe('a participant re-joins with their bearer', () => {
     const participants = await storedParticipants(session.id);
     expect(participants).toHaveLength(1);
     expect(participants[0]).toMatchObject({ name: 'Paco', isOwner: true });
+  });
+
+  it('accepts a lowercase bearer scheme, like every other route', async () => {
+    const session = await createOpenSession();
+
+    const res = await join(session.code, 'Paco', session.auth.token, 'bearer');
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as JoinResponse;
+    expect(body.auth.participantId).toBe(session.auth.participantId);
+    expect(body.auth.token).toBeUndefined();
+    expect(await storedParticipants(session.id)).toHaveLength(1);
   });
 
   it('is idempotent for a guest: same participant, latest name wins', async () => {
