@@ -5,9 +5,9 @@ import { useConfirmSession } from '@/features/session/api/confirm-session';
 import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
 
-interface ConfirmSessionButtonProps {
+type ConfirmSessionButtonProps = {
   session: Session;
-}
+};
 
 export function ConfirmSessionButton({ session }: ConfirmSessionButtonProps) {
   const totals = receiptTotals(session);

@@ -16,10 +16,10 @@ import { Button } from 'shadcn-ui/button';
 import { useDeleteLineItem } from '@/features/session/line-item/api/delete-line-item';
 import type { LineItem } from '@/types/session';
 
-interface DeleteLineItemProps {
+type DeleteLineItemProps = {
   sessionId: string;
   lineItem: LineItem;
-}
+};
 
 export function DeleteLineItem({ sessionId, lineItem }: DeleteLineItemProps) {
   const [open, setOpen] = useState(false);

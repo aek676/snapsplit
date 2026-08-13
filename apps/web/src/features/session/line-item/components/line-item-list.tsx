@@ -2,9 +2,9 @@ import { AddLineItem } from '@/features/session/line-item/components/add-line-it
 import { LineItemRow } from '@/features/session/line-item/components/line-item-row';
 import type { Session } from '@/types/session';
 
-interface LineItemListProps {
+type LineItemListProps = {
   session: Session;
-}
+};
 
 export function LineItemList({ session }: LineItemListProps) {
   return (

@@ -4,11 +4,11 @@ import { DeleteLineItem } from '@/features/session/line-item/components/delete-l
 import { EditLineItem } from '@/features/session/line-item/components/edit-line-item';
 import type { LineItem } from '@/types/session';
 
-interface LineItemRowProps {
+type LineItemRowProps = {
   sessionId: string;
   lineItem: LineItem;
   currency: string;
-}
+};
 
 export function LineItemRow({
   sessionId,

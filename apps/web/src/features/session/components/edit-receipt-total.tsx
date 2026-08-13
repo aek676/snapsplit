@@ -21,9 +21,9 @@ import {
 } from '@/features/session/api/update-session';
 import type { Session } from '@/types/session';
 
-interface EditReceiptTotalProps {
+type EditReceiptTotalProps = {
   session: Session;
-}
+};
 
 export function EditReceiptTotal({ session }: EditReceiptTotalProps) {
   const [open, setOpen] = useState(false);
