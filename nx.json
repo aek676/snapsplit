@@ -5,57 +5,37 @@
     "applyChanges": true
   },
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/tsconfig.spec.json",
       "!{projectRoot}/**/vite.config.{js,ts,mjs,mts}",
-      "!{projectRoot}/**/vitest.config.{js,ts,mjs,mts}",
-
+      "!{projectRoot}/test/**"
     ],
     "sharedGlobals": [
       "{workspaceRoot}/tsconfig.base.json",
-      "{workspaceRoot}/biome.json",
       "{workspaceRoot}/.github/workflows/ci.yml"
     ]
   },
   "targetDefaults": {
     "build": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     },
     "test": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^production"
-      ]
+      "inputs": ["default", "^production"]
     },
     "lint": {
       "cache": true,
-      "inputs": [
-        "default",
-        "{workspaceRoot}/biome.json"
-      ]
+      "inputs": ["default", "{workspaceRoot}/biome.json"]
     },
     "format:check": {
       "cache": true,
-      "inputs": [
-        "default",
-        "{workspaceRoot}/biome.json"
-      ]
-    },
-
+      "inputs": ["default", "{workspaceRoot}/biome.json"]
+    }
   },
   "plugins": [
     {
@@ -89,8 +69,7 @@
       "plugin": "@nx/vitest",
       "options": {
         "testTargetName": "test",
-        "ciTargetName": "test-ci",
-        "testMode": "watch"
+        "testMode": "run"
       }
     }
   ],
