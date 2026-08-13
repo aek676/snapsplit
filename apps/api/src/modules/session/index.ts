@@ -172,6 +172,26 @@ export function createSessionModule(service: SessionService) {
           tags: ['Sessions'],
         },
       },
+    )
+    .post(
+      '/join',
+      ({ body, headers }) => {
+        const bearer = headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+        return service.joinSession(body.code, body.name, bearer);
+      },
+      {
+        body: SessionModel.joinBody,
+        response: {
+          200: SessionModel.joinResponse,
+          404: SessionModel.sessionNotFound,
+          409: SessionModel.sessionNotOpen,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Join a session by share code',
+          tags: ['Sessions'],
+        },
+      },
     );
 }
 

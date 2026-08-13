@@ -62,6 +62,19 @@ export const SessionModel = {
     sessionView,
     t.Object({ auth: authView }),
   ]),
+  joinBody: t.Object({
+    code: t.String({ pattern: '^[A-HJ-NP-Za-hj-np-z2-9]{8}$' }),
+    name: t.String({ minLength: 1, maxLength: 50 }),
+  }),
+  joinResponse: t.Composite([
+    sessionView,
+    t.Object({
+      auth: t.Composite([
+        t.Pick(authView, ['participantId']),
+        t.Partial(t.Pick(authView, ['token'])),
+      ]),
+    }),
+  ]),
   noContent: t.Void(),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
@@ -74,6 +87,8 @@ export const SessionModel = {
   sessionEmpty: t.Literal('Session has no items to split'),
   sessionNeedsReview: t.Literal('Some items still need review'),
   sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
+  sessionNotFound: t.Literal('Session not found'),
+  sessionNotOpen: t.Literal('Session is not open for joining'),
   codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 

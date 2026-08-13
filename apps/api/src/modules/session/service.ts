@@ -270,4 +270,53 @@ export class SessionService {
     );
     return status(500, SessionModel.codeGenerationFailed.const);
   }
+
+  async joinSession(rawCode: string, name: string, callerToken?: string) {
+    const code = rawCode.toUpperCase();
+    if (callerToken) {
+      const callerTokenHash = hashToken(callerToken);
+      const session = await Session.findOneAndUpdate(
+        {
+          code,
+          status: 'open',
+          'participants.deviceTokenHash': callerTokenHash,
+        },
+        { $set: { 'participants.$.name': name } },
+        { returnDocument: 'after' },
+      ).select('+participants.deviceTokenHash');
+
+      if (session) {
+        const me = session.participants.find(
+          (participant) => participant.deviceTokenHash === callerTokenHash,
+        );
+        if (me) {
+          return {
+            ...toSessionView(session),
+            auth: { participantId: String(me._id) },
+          };
+        }
+      }
+    }
+
+    const token = generateToken();
+    const deviceTokenHash = hashToken(token);
+
+    const session = await Session.findOneAndUpdate(
+      { code, status: 'open' },
+      { $push: { participants: { name, deviceTokenHash, isOwner: false } } },
+      { returnDocument: 'after' },
+    );
+
+    if (!session) {
+      const exists = await Session.exists({ code });
+      if (!exists) return status(404, SessionModel.sessionNotFound.const);
+      return status(409, SessionModel.sessionNotOpen.const);
+    }
+
+    const guest = session.participants[session.participants.length - 1];
+    return {
+      ...toSessionView(session),
+      auth: { participantId: String(guest._id), token },
+    };
+  }
 }

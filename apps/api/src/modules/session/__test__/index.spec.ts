@@ -726,3 +726,45 @@ describe('POST /sessions/:sessionId/confirm', () => {
     expect(await res.text()).toBe('Session is not editable');
   });
 });
+
+describe('POST /sessions/join', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  const joinBody = { code: 'ABCDEFGH', name: 'Marta' };
+
+  it.each([
+    ['a short code', { ...joinBody, code: 'ABC' }],
+    ['a code with excluded characters', { ...joinBody, code: 'ABCDEFG0' }],
+    ['an empty name', { ...joinBody, name: '' }],
+    ['a missing name', { code: joinBody.code }],
+  ])('returns 422 for %s', async (_label, body) => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join', { method: 'POST', body, token: null }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ type: 'validation', on: 'body' });
+  });
+
+  it('maps an unexpected error to 500 via onError', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockImplementation((() =>
+      Promise.reject(new Error('mongo down'))) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join', { method: 'POST', body: joinBody, token: null }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('Unexpected server error');
+    expect(console.error).toHaveBeenCalled();
+  });
+});
