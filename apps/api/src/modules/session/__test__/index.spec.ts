@@ -795,3 +795,106 @@ describe('POST /sessions/join/:code', () => {
     expect(console.error).toHaveBeenCalled();
   });
 });
+
+describe('PUT /sessions/:sessionId/line-items/:lineItemId/claim', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  function openSessionWithGuest() {
+    const session = sessionWithGuest();
+    session.status = 'open';
+    return session;
+  }
+
+  function mockClaimWrite(target: unknown) {
+    return spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+      _filter: unknown,
+      update: { $set: Record<string, unknown> },
+      options: { arrayFilters: [{ 'item._id': unknown }] },
+    ) => {
+      if (!target) return Promise.resolve(null);
+      const session = target as InstanceType<typeof Session>;
+      const lineItem = session.lineItems.id(
+        String(options.arrayFilters[0]['item._id']),
+      );
+      lineItem?.set('claims', update.$set['lineItems.$[item].claims']);
+      return Promise.resolve(target);
+    }) as never);
+  }
+
+  it('claims units for the participant behind the token, not the body', async () => {
+    const session = openSessionWithGuest();
+    const guestId = String(session.participants[1]._id);
+    mockLookup(session);
+    mockClaimWrite(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        {
+          method: 'PUT',
+          token: GUEST_TOKEN,
+          body: { units: 2, participantId: 'ignored-if-sent' },
+        },
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.lineItems[0].claims).toEqual([
+      { participantId: guestId, units: 2 },
+    ]);
+  });
+
+  it('rejects claims while the session is a draft', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        { method: 'PUT', token: GUEST_TOKEN, body: { units: 1 } },
+      ),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not open');
+  });
+
+  it('rejects negative units at the validation layer', async () => {
+    const session = openSessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        { method: 'PUT', token: GUEST_TOKEN, body: { units: -1 } },
+      ),
+    );
+
+    expect(res.status).toBe(422);
+  });
+
+  it('requires a bearer token', async () => {
+    const session = openSessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        { method: 'PUT', token: null, body: { units: 1 } },
+      ),
+    );
+
+    expect(res.status).toBe(401);
+  });
+});

@@ -51,7 +51,7 @@ describe('full thread: /analyze issues a token that opens its session', () => {
     expect(body).toMatchObject({ id: draft.id, status: 'draft' });
     expect(JSON.stringify(body)).not.toContain(draft.auth.token);
     expect(body).not.toHaveProperty('auth');
-    expect(body).not.toHaveProperty('participants');
+    expect(JSON.stringify(body)).not.toContain('deviceTokenHash');
   });
 
   it('lets the owner edit the draft line items', async () => {

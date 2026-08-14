@@ -988,3 +988,285 @@ describe('SessionService.confirmSession', () => {
     expect(publish).toHaveBeenCalledTimes(1);
   });
 });
+
+function openSession() {
+  const session = new Session(
+    buildDraftPayload(deviceTokenHash, extracted, '/receipts/abc.jpg'),
+  );
+  session.status = 'open';
+  session.participants.push({
+    name: 'Luis',
+    deviceTokenHash: hashToken('guest-token'),
+    isOwner: false,
+  });
+  return session;
+}
+
+function fakeEvents() {
+  return {
+    publish: mock(() => {}),
+    subscribe: mock(() => {
+      throw new Error('not used in these tests');
+    }),
+  };
+}
+
+type ClaimAttempt = {
+  filter: Record<string, unknown>;
+  claims: { participantId: unknown; units: number }[];
+};
+
+/**
+ * Stands in for the claim compare-and-swap, applying the `$set` claims array
+ * to the matching line item of `target`. Every attempt is recorded so a test
+ * can assert what the swap was keyed on.
+ */
+function mockClaimWrite(target: HydratedDocument<Session> | null) {
+  const attempts: ClaimAttempt[] = [];
+  spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+    filter: Record<string, unknown>,
+    update: { $set: Record<string, unknown> },
+    options: { arrayFilters: [{ 'item._id': unknown }] },
+  ) => {
+    const claims = update.$set[
+      'lineItems.$[item].claims'
+    ] as ClaimAttempt['claims'];
+    attempts.push({ filter, claims });
+    if (!target) return Promise.resolve(null);
+    const lineItem = target.lineItems.id(
+      String(options.arrayFilters[0]['item._id']),
+    );
+    if (lineItem) lineItem.set('claims', claims);
+    return Promise.resolve(target);
+  }) as never);
+  return attempts;
+}
+
+describe('SessionService.setClaim', () => {
+  afterEach(() => {
+    mock.restore();
+  });
+
+  function serviceWith(events = fakeEvents()) {
+    return {
+      events,
+      service: new SessionService(
+        mock<ExtractReceipt>(async () => extracted),
+        fakeStorage(),
+        events,
+      ),
+    };
+  }
+
+  it('upserts the caller claim with an absolute unit count', async () => {
+    const session = openSession();
+    const me = String(session.participants[1]._id);
+    const lineItemId = String(session.lineItems[0]._id);
+    const attempts = mockClaimWrite(session);
+    const { service, events } = serviceWith();
+
+    const result = (await service.setClaim(
+      session,
+      me,
+      lineItemId,
+      2,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0].claims).toEqual([
+      { participantId: me, units: 2 },
+    ]);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].filter).toMatchObject({ status: 'open' });
+    expect(events.publish).toHaveBeenCalledWith(String(session._id), {
+      type: 'claims-updated',
+      at: expect.any(String),
+    });
+  });
+
+  it('replaces the previous claim instead of accumulating', async () => {
+    const session = openSession();
+    const me = String(session.participants[1]._id);
+    session.lineItems[0].claims.push({
+      participantId: session.participants[1]._id,
+      units: 2,
+    });
+    const lineItemId = String(session.lineItems[0]._id);
+    mockClaimWrite(session);
+    const { service } = serviceWith();
+
+    const result = (await service.setClaim(
+      session,
+      me,
+      lineItemId,
+      1,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0].claims).toEqual([
+      { participantId: me, units: 1 },
+    ]);
+  });
+
+  it('removes the claim when units is zero', async () => {
+    const session = openSession();
+    const me = String(session.participants[1]._id);
+    session.lineItems[0].claims.push({
+      participantId: session.participants[1]._id,
+      units: 2,
+    });
+    const lineItemId = String(session.lineItems[0]._id);
+    mockClaimWrite(session);
+    const { service } = serviceWith();
+
+    const result = (await service.setClaim(
+      session,
+      me,
+      lineItemId,
+      0,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0].claims).toEqual([]);
+  });
+
+  it('keeps other participants claims untouched', async () => {
+    const session = openSession();
+    const owner = String(session.participants[0]._id);
+    const me = String(session.participants[1]._id);
+    session.lineItems[0].claims.push({
+      participantId: session.participants[0]._id,
+      units: 1,
+    });
+    const lineItemId = String(session.lineItems[0]._id);
+    mockClaimWrite(session);
+    const { service } = serviceWith();
+
+    const result = (await service.setClaim(
+      session,
+      me,
+      lineItemId,
+      2,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0].claims).toEqual([
+      { participantId: owner, units: 1 },
+      { participantId: me, units: 2 },
+    ]);
+  });
+
+  it('rejects a claim on a session that is not open', async () => {
+    const session = openSession();
+    session.status = 'closed';
+    const { service, events } = serviceWith();
+
+    const result = await service.setClaim(
+      session,
+      String(session.participants[1]._id),
+      String(session.lineItems[0]._id),
+      1,
+    );
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not open',
+    });
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('rejects a claim on a missing line item', async () => {
+    const session = openSession();
+    const { service } = serviceWith();
+
+    const result = await service.setClaim(
+      session,
+      String(session.participants[1]._id),
+      '000000000000000000000000',
+      1,
+    );
+
+    expect(result).toMatchObject({
+      code: 404,
+      response: 'Line item not found',
+    });
+  });
+
+  it('rejects units beyond what other participants left available', async () => {
+    const session = openSession();
+    session.lineItems[0].claims.push({
+      participantId: session.participants[0]._id,
+      units: 2,
+    });
+    const { service, events } = serviceWith();
+
+    const result = await service.setClaim(
+      session,
+      String(session.participants[1]._id),
+      String(session.lineItems[0]._id),
+      2,
+    );
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Not enough units available',
+    });
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('does not count the caller previous claim against availability', async () => {
+    const session = openSession();
+    session.lineItems[0].claims.push({
+      participantId: session.participants[1]._id,
+      units: 3,
+    });
+    const me = String(session.participants[1]._id);
+    mockClaimWrite(session);
+    const { service } = serviceWith();
+
+    const result = (await service.setClaim(
+      session,
+      me,
+      String(session.lineItems[0]._id),
+      3,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.lineItems[0].claims).toEqual([
+      { participantId: me, units: 3 },
+    ]);
+  });
+
+  it('rereads and retries when the compare-and-swap misses', async () => {
+    const session = openSession();
+    const me = String(session.participants[1]._id);
+    const lineItemId = String(session.lineItems[0]._id);
+
+    const write = spyOn(Session, 'findOneAndUpdate')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(session);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+    const { service } = serviceWith();
+
+    const result = await service.setClaim(session, me, lineItemId, 1);
+
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ status: 'open' });
+  });
+
+  it('gives up with a conflict after exhausting retries', async () => {
+    const session = openSession();
+
+    spyOn(Session, 'findOneAndUpdate').mockResolvedValue(null);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+    const { service, events } = serviceWith();
+
+    const result = await service.setClaim(
+      session,
+      String(session.participants[1]._id),
+      String(session.lineItems[0]._id),
+      1,
+    );
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Not enough units available',
+    });
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+});

@@ -100,7 +100,6 @@ describe('a guest joins with the share code', () => {
 
     const text = await res.text();
     expect(text).not.toContain('deviceTokenHash');
-    expect(text).not.toContain('participants');
     expect(text).not.toContain(session.auth.token);
   });
 
