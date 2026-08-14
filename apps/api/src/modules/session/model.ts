@@ -6,6 +6,17 @@ import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
 const status = t.UnionEnum([...STATUS]);
 const totalSource = t.UnionEnum([...TOTAL_SOURCE]);
 
+const claimView = t.Object({
+  participantId: t.String(),
+  units: t.Number(),
+});
+
+const participantView = t.Object({
+  id: t.String(),
+  name: t.Nullable(t.String()),
+  isOwner: t.Boolean(),
+});
+
 const lineItemView = t.Object({
   id: t.String(),
   name: t.String(),
@@ -13,6 +24,7 @@ const lineItemView = t.Object({
   unitPriceCents: t.Number(),
   lineTotalCents: t.Number(),
   aiConfidence: t.Number(),
+  claims: t.Array(claimView),
 });
 
 const sessionView = t.Object({
@@ -26,6 +38,7 @@ const sessionView = t.Object({
   totalSource,
   receiptImageUrl: t.String(),
   lineItems: t.Array(lineItemView),
+  participants: t.Array(participantView),
 });
 
 const authView = t.Object({
@@ -75,6 +88,7 @@ export const SessionModel = {
       ]),
     }),
   ]),
+  claimBody: t.Object({ units: t.Integer({ minimum: 0 }) }),
   noContent: t.Void(),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),
@@ -87,7 +101,9 @@ export const SessionModel = {
   sessionEmpty: t.Literal('Session has no items to split'),
   sessionNeedsReview: t.Literal('Some items still need review'),
   sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
+  sessionNotOpen: t.Literal('Session is not open'),
   sessionNotFound: t.Literal('Session not found'),
+  notEnoughUnits: t.Literal('Not enough units available'),
   tooManyJoinAttempts: t.Literal(
     'Too many join attempts. Try again in a minute.',
   ),

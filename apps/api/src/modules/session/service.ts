@@ -4,7 +4,7 @@ import {
   SESSION_CODE_LENGTH,
 } from '@repo/shared-types';
 import { status } from 'elysia';
-import type { HydratedDocument } from 'mongoose';
+import { type HydratedDocument, Types } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
 import { isDuplicateKeyError } from '../../common/mongo';
 import { type LineItem, type Participant, Session } from '../../schemas';
@@ -18,6 +18,7 @@ import {
 import { SessionModel } from './model';
 
 const CODE_ATTEMPTS = 5;
+const CLAIM_ATTEMPTS = 3;
 
 export function generateSessionCode() {
   const bytes = new Uint8Array(SESSION_CODE_LENGTH);
@@ -72,6 +73,19 @@ export function lineSumCents(session: HydratedDocument<Session>): number {
   return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
 }
 
+export function claimedUnits(
+  lineItem: LineItem,
+  excludeParticipantId?: string,
+): number {
+  return lineItem.claims.reduce(
+    (sum, claim) =>
+      String(claim.participantId) === excludeParticipantId
+        ? sum
+        : sum + claim.units,
+    0,
+  );
+}
+
 export function toSessionView(
   session: HydratedDocument<Session>,
 ): SessionModel['draftSessionResponse'] {
@@ -92,6 +106,15 @@ export function toSessionView(
       unitPriceCents: item.unitPriceCents,
       lineTotalCents: item.lineTotalCents,
       aiConfidence: item.aiConfidence,
+      claims: item.claims.map((claim) => ({
+        participantId: String(claim.participantId),
+        units: claim.units,
+      })),
+    })),
+    participants: session.participants.map((participant) => ({
+      id: String(participant._id),
+      name: participant.name ?? null,
+      isOwner: participant.isOwner,
     })),
   };
 }
@@ -257,7 +280,10 @@ export class SessionService {
       try {
         const published = await Session.findOneAndUpdate(
           { _id: session._id, status: 'draft' },
-          { $set: { status: 'open', code: generateSessionCode() } },
+          {
+            $set: { status: 'open', code: generateSessionCode() },
+            $inc: { __v: 1 },
+          },
           { returnDocument: 'after' },
         );
         if (!published) return status(409, SessionModel.sessionNotDraft.const);
@@ -284,7 +310,7 @@ export class SessionService {
             status: 'open',
             'participants.deviceTokenHash': callerTokenHash,
           },
-          { $set: { 'participants.$.name': name } },
+          { $set: { 'participants.$.name': name }, $inc: { __v: 1 } },
           { returnDocument: 'after' },
         ).select('+participants.deviceTokenHash')) ??
         // Only reached when the session is not open, since the update above
@@ -314,7 +340,12 @@ export class SessionService {
 
     const session = await Session.findOneAndUpdate(
       { code, status: 'open' },
-      { $push: { participants: { name, deviceTokenHash, isOwner: false } } },
+      {
+        $push: {
+          participants: { name, deviceTokenHash, isOwner: false },
+        },
+        $inc: { __v: 1 },
+      },
       { returnDocument: 'after' },
     );
 
@@ -328,5 +359,55 @@ export class SessionService {
       ...toSessionView(session),
       auth: { participantId: String(guest._id), token },
     };
+  }
+
+  async setClaim(
+    session: HydratedDocument<Session>,
+    participantId: string,
+    lineItemId: string,
+    units: number,
+  ) {
+    for (let attempt = 0; attempt < CLAIM_ATTEMPTS; attempt++) {
+      const doc = attempt === 0 ? session : await Session.findById(session._id);
+      if (!doc) return status(404, SessionModel.sessionNotFound.const);
+
+      if (doc.status !== 'open')
+        return status(409, SessionModel.sessionNotOpen.const);
+
+      const lineItem = doc.lineItems.id(lineItemId);
+
+      if (!lineItem) return status(404, SessionModel.lineItemNotFound.const);
+
+      if (units > lineItem.quantity - claimedUnits(lineItem, participantId))
+        return status(409, SessionModel.notEnoughUnits.const);
+
+      const nextClaims = lineItem.claims
+        .filter((claim) => String(claim.participantId) !== participantId)
+        .map((claim) => ({
+          participantId: claim.participantId,
+          units: claim.units,
+        }));
+
+      if (units > 0)
+        nextClaims.push({
+          participantId: new Types.ObjectId(participantId),
+          units,
+        });
+
+      const updated = await Session.findOneAndUpdate(
+        { _id: doc._id, status: 'open', __v: doc.__v },
+        {
+          $set: { 'lineItems.$[item].claims': nextClaims },
+          $inc: { __v: 1 },
+        },
+        {
+          arrayFilters: [{ 'item._id': lineItemId }],
+          returnDocument: 'after',
+        },
+      );
+
+      if (updated) return toSessionView(updated);
+    }
+    return status(409, SessionModel.notEnoughUnits.const);
   }
 }

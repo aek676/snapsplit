@@ -373,8 +373,9 @@ describe('GET /sessions/:sessionId', () => {
     const res = await app.handle(request(`/sessions/${session._id}`));
 
     const raw = await res.text();
-    expect(raw).not.toContain('participants');
+    expect(raw).not.toContain('deviceTokenHash');
     expect(raw).not.toContain(hashToken(OWNER_TOKEN));
+    expect(raw).not.toContain(hashToken(GUEST_TOKEN));
   });
 
   it('lets a guest read the session', async () => {
