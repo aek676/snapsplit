@@ -1,9 +1,10 @@
-import { Elysia, t } from 'elysia';
+import { Elysia, sse, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
 import { joinRateLimit } from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
+import { sessionEvents } from './events';
 import { SessionModel } from './model';
 import { SessionService, toSessionView } from './service';
 
@@ -171,6 +172,70 @@ export function createSessionModule(service: SessionService) {
         },
         detail: {
           summary: 'Confirm a draft session and publish its share code',
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .put(
+      '/:sessionId/line-items/:lineItemId/claim',
+      ({ session, participant, params, body }) =>
+        service.setClaim(
+          session,
+          String(participant._id),
+          params.lineItemId,
+          body.units,
+        ),
+      {
+        auth: true,
+        params: SessionModel.lineItemParams,
+        body: SessionModel.claimBody,
+        response: {
+          200: SessionModel.draftSessionResponse,
+          401: AuthModel.unauthorized,
+          403: AuthModel.forbidden,
+          404: t.Union([
+            SessionModel.sessionNotFound,
+            SessionModel.lineItemNotFound,
+          ]),
+          409: t.Union([
+            SessionModel.sessionNotOpen,
+            SessionModel.notEnoughUnits,
+          ]),
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: "Set the caller's claimed units on a line item",
+          tags: ['Sessions'],
+        },
+      },
+    )
+    .get(
+      '/:sessionId/events',
+      async function* ({ session, request }) {
+        yield sse({
+          event: 'update',
+          data: { type: 'connected' as const, at: new Date().toISOString() },
+        });
+        try {
+          for await (const event of sessionEvents.subscribe(
+            String(session._id),
+            request.signal,
+          )) {
+            yield sse({
+              event: event.type === 'heartbeat' ? 'ping' : 'update',
+              data: event,
+            });
+          }
+        } catch {
+          // The response is already streaming: nothing useful can be sent
+          // past this point, so end the stream and let the client reconnect.
+        }
+      },
+      {
+        auth: true,
+        params: SessionModel.sessionParams,
+        detail: {
+          summary: 'Stream live session events over SSE',
           tags: ['Sessions'],
         },
       },
