@@ -10,6 +10,7 @@ import { isDuplicateKeyError } from '../../common/mongo';
 import { type LineItem, type Participant, Session } from '../../schemas';
 import type { ObjectStorage } from '../../storage/object-storage';
 import { generateToken, hashToken } from '../auth/service';
+import { type SessionEvents, sessionEvents } from './events';
 import {
   newReceiptFileId,
   receiptFileId,
@@ -123,6 +124,7 @@ export class SessionService {
   constructor(
     private readonly extract: ExtractReceipt,
     private readonly storage: ObjectStorage,
+    private readonly events: SessionEvents = sessionEvents,
   ) {}
 
   async createDraftFromImage({ image }: SessionModel['analyzeBody']) {
@@ -354,6 +356,11 @@ export class SessionService {
     // would confirm which codes are real to anyone probing them.
     if (!session) return status(404, SessionModel.sessionNotFound.const);
 
+    this.events.publish(String(session._id), {
+      type: 'participant-joined',
+      at: new Date().toISOString(),
+    });
+
     const guest = session.participants[session.participants.length - 1];
     return {
       ...toSessionView(session),
@@ -406,7 +413,13 @@ export class SessionService {
         },
       );
 
-      if (updated) return toSessionView(updated);
+      if (updated) {
+        this.events.publish(String(updated._id), {
+          type: 'claims-updated',
+          at: new Date().toISOString(),
+        });
+        return toSessionView(updated);
+      }
     }
     return status(409, SessionModel.notEnoughUnits.const);
   }
