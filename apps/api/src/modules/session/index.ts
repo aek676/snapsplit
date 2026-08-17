@@ -1,10 +1,11 @@
+import { unwrapSchema } from '@elysiajs/openapi/openapi';
 import { Elysia, sse, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
 import { joinRateLimit } from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
-import { sessionEvents } from './events';
+import { type SessionEvent, sessionEvents } from './events';
 import { SessionModel } from './model';
 import { SessionService, toSessionView } from './service';
 
@@ -214,7 +215,10 @@ export function createSessionModule(service: SessionService) {
       async function* ({ session, request }) {
         yield sse({
           event: 'update',
-          data: { type: 'connected' as const, at: new Date().toISOString() },
+          data: {
+            type: 'connected',
+            at: new Date().toISOString(),
+          } satisfies SessionEvent,
         });
         try {
           for await (const event of sessionEvents.subscribe(
@@ -237,6 +241,17 @@ export function createSessionModule(service: SessionService) {
         detail: {
           summary: 'Stream live session events over SSE',
           tags: ['Sessions'],
+          responses: {
+            200: {
+              description:
+                'Stream of `update` events (session changes) and `ping` heartbeats',
+              content: {
+                'text/event-stream': {
+                  schema: unwrapSchema(SessionModel.sessionEvent),
+                },
+              },
+            },
+          },
         },
       },
     )

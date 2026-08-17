@@ -2,6 +2,7 @@ import { t } from 'elysia';
 import { objectId, sessionCode } from '../../common/model';
 import { STATUS, TOTAL_SOURCE, type TotalSource } from '../../schemas';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
+import { SESSION_EVENT_TYPES } from './events';
 
 const status = t.UnionEnum([...STATUS]);
 const totalSource = t.UnionEnum([...TOTAL_SOURCE]);
@@ -89,6 +90,10 @@ export const SessionModel = {
     }),
   ]),
   claimBody: t.Object({ units: t.Integer({ minimum: 0 }) }),
+  sessionEvent: t.Object({
+    type: t.UnionEnum([...SESSION_EVENT_TYPES]),
+    at: t.String({ format: 'date-time' }),
+  }),
   noContent: t.Void(),
   analysisFailed: t.Literal('Receipt analysis failed'),
   draftCreationFailed: t.Literal('Failed to create draft session'),

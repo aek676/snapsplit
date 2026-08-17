@@ -1,7 +1,14 @@
 import { EventEmitter } from 'node:events';
 
+export const SESSION_EVENT_TYPES = [
+  'connected',
+  'claims-updated',
+  'participant-joined',
+  'heartbeat',
+] as const;
+
 export type SessionEvent = {
-  type: 'connected' | 'claims-updated' | 'participant-joined' | 'heartbeat';
+  type: (typeof SESSION_EVENT_TYPES)[number];
   at: string;
 };
 
