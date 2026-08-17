@@ -5,8 +5,10 @@ import { useState } from 'react';
 import { HeroIllustration } from '@/components/hero-illustration';
 import { Money } from '@/components/ui/money';
 import { Wordmark } from '@/components/wordmark';
+import { useSession } from '@/features/session/api/get-session';
 import { JoinSessionForm } from '@/features/session/components/join-session';
 import type { Session } from '@/types/session';
+import { getToken, sessionIdForCode } from '@/utils/device-token';
 
 export const Route = createFileRoute('/s/$code')({
   component: GuestJoinPage,
@@ -27,16 +29,11 @@ function GuestJoinPage() {
     );
   }
 
-  if (session) {
-    return (
-      <JoinScreen>
-        <Heading
-          title="You're in"
-          subtitle="Picking what you had is coming soon."
-        />
-        <SessionSummary session={session} />
-      </JoinScreen>
-    );
+  const rememberedId = sessionIdForCode(code);
+  const joinedId =
+    session?.id ?? (rememberedId && getToken(rememberedId) ? rememberedId : null);
+  if (joinedId) {
+    return <JoinedScreen sessionId={joinedId} />;
   }
 
   return (
@@ -49,6 +46,20 @@ function GuestJoinPage() {
         subtitle="Enter your name to start claiming items."
       />
       <JoinSessionForm code={code} onJoined={setSession} />
+    </JoinScreen>
+  );
+}
+
+function JoinedScreen({ sessionId }: { sessionId: string }) {
+  const { data: session } = useSession({ sessionId });
+
+  return (
+    <JoinScreen>
+      <Heading
+        title="You're in"
+        subtitle="Picking what you had is coming soon."
+      />
+      {session && <SessionSummary session={session} />}
     </JoinScreen>
   );
 }
