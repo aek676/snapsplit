@@ -10,12 +10,12 @@ import { isDuplicateKeyError } from '../../common/mongo';
 import { type LineItem, type Participant, Session } from '../../schemas';
 import type { ObjectStorage } from '../../storage/object-storage';
 import { generateToken, hashToken } from '../auth/service';
-import { type SessionEvents, sessionEvents } from './events';
 import {
   newReceiptFileId,
   receiptFileId,
   receiptUrl,
 } from '../receipt/service';
+import { type SessionEvents, sessionEvents } from './events';
 import { SessionModel } from './model';
 
 const CODE_ATTEMPTS = 5;
