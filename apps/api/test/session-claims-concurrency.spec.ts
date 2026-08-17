@@ -124,6 +124,31 @@ describe('two guests racing with claims that fit together', () => {
   });
 });
 
+describe('one guest lowering a claim while another raises theirs', () => {
+  it('lets the increase land once the decrease frees units', async () => {
+    const { id, lineItemId, guests } = await openSessionWithGuests();
+    const [ana, luis] = guests;
+
+    expect((await claim(id, lineItemId, ana.auth.token, 2)).status).toBe(200);
+
+    let [decrease, increase] = await Promise.all([
+      claim(id, lineItemId, ana.auth.token, 1),
+      claim(id, lineItemId, luis.auth.token, 2),
+    ]);
+
+    expect(decrease.status).toBe(200);
+
+    // The increase may read a snapshot from before the decrease landed and
+    // 409; after the decrease is durable a retry must succeed.
+    if (increase.status === 409)
+      increase = await claim(id, lineItemId, luis.auth.token, 2);
+    expect(increase.status).toBe(200);
+
+    const claims = await storedClaims(id);
+    expect(claims.map((entry) => entry.units).sort()).toEqual([1, 2]);
+  });
+});
+
 describe('reclaiming with an absolute unit count', () => {
   it('replaces the previous claim and frees units at zero', async () => {
     const { id, lineItemId, guests } = await openSessionWithGuests();
