@@ -230,9 +230,12 @@ export function createSessionModule(service: SessionService) {
               data: event,
             });
           }
-        } catch {
+        } catch (error) {
           // The response is already streaming: nothing useful can be sent
           // past this point, so end the stream and let the client reconnect.
+          if (!request.signal.aborted) {
+            console.error('SSE stream failed', error);
+          }
         }
       },
       {
