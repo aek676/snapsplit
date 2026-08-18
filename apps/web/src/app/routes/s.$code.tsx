@@ -1,13 +1,21 @@
 import { isSessionCode } from '@repo/shared-types';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
+import { Alert, AlertDescription } from 'shadcn-ui/alert';
+import { Button } from 'shadcn-ui/button';
+import { Card, CardContent } from 'shadcn-ui/card';
+import { Spinner } from 'shadcn-ui/spinner';
+
 import { HeroIllustration } from '@/components/hero-illustration';
-import { Money } from '@/components/ui/money';
-import { Wordmark } from '@/components/wordmark';
 import { useSession } from '@/features/session/api/get-session';
+import {
+    JoinHeading,
+    JoinScreen,
+} from '@/features/session/components/join-screen';
 import { JoinSessionForm } from '@/features/session/components/join-session';
-import type { Session } from '@/types/session';
+import { LiveSession } from '@/features/session/components/live-session';
+import { needsName } from '@/features/session/utils/needs-name';
 import { getToken, sessionIdForCode } from '@/utils/device-token';
 
 export const Route = createFileRoute('/s/$code')({
@@ -16,12 +24,20 @@ export const Route = createFileRoute('/s/$code')({
 
 function GuestJoinPage() {
   const { code } = Route.useParams();
-  const [session, setSession] = useState<Session | null>(null);
+  const [joinedId, setJoinedId] = useState<string | null>(() => {
+    const rememberedId = sessionIdForCode(code);
+    return rememberedId && getToken(rememberedId) ? rememberedId : null;
+  });
+
+  const sessionQuery = useSession({
+    sessionId: joinedId ?? '',
+    queryConfig: { enabled: Boolean(joinedId) },
+  });
 
   if (!isSessionCode(code)) {
     return (
       <JoinScreen>
-        <Heading
+        <JoinHeading
           title="This link looks broken"
           subtitle="Ask whoever paid to share the link again."
         />
@@ -29,81 +45,58 @@ function GuestJoinPage() {
     );
   }
 
-  const rememberedId = sessionIdForCode(code);
-  const joinedId =
-    session?.id ?? (rememberedId && getToken(rememberedId) ? rememberedId : null);
-  if (joinedId) {
-    return <JoinedScreen sessionId={joinedId} />;
+  if (joinedId && sessionQuery.isPending) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-160 items-center justify-center">
+        <Spinner className="size-12" />
+      </main>
+    );
   }
 
-  return (
-    <JoinScreen>
-      <div className="surface-card">
-        <HeroIllustration className="rounded-xl" />
-      </div>
-      <Heading
-        title="Join the session"
-        subtitle="Enter your name to start claiming items."
-      />
-      <JoinSessionForm code={code} onJoined={setSession} />
-    </JoinScreen>
-  );
-}
-
-function JoinedScreen({ sessionId }: { sessionId: string }) {
-  const { data: session } = useSession({ sessionId });
-
-  return (
-    <JoinScreen>
-      <Heading
-        title="You're in"
-        subtitle="Picking what you had is coming soon."
-      />
-      {session && <SessionSummary session={session} />}
-    </JoinScreen>
-  );
-}
-
-function Heading({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="space-y-2 text-center">
-      <h1 className="screen-title">{title}</h1>
-      <p className="body-text text-content-secondary">{subtitle}</p>
-    </div>
-  );
-}
-
-function SessionSummary({ session }: { session: Session }) {
-  return (
-    <div className="surface-card text-center">
-      <p className="eyebrow text-content-secondary">
-        {session.merchant ?? 'Receipt'}
-      </p>
-      <Money
-        cents={session.totalCents}
-        currency={session.currency}
-        className="price-total"
-      />
-      <p className="unit-meta text-content-tertiary">
-        {session.lineItems.length === 1
-          ? '1 item'
-          : `${session.lineItems.length} items`}
-      </p>
-    </div>
-  );
-}
-
-function JoinScreen({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 flex items-center justify-center bg-background px-5 py-3">
-        <Wordmark />
-      </header>
-      <main className="mx-auto flex w-full max-w-160 flex-1 flex-col items-center justify-center px-5 py-8">
-        <div className="stagger-children flex w-full max-w-sm flex-col gap-8">
-          {children}
-        </div>
+  if (joinedId && sessionQuery.isError) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-160 flex-col items-center justify-center gap-4 px-5 text-center">
+        <Alert variant="destructive">
+          <AlertDescription>Couldn't load this session</AlertDescription>
+        </Alert>
+        <Button variant="secondary" onClick={() => sessionQuery.refetch()}>
+          Try again
+        </Button>
       </main>
-    </div>
-  );
+    );
+  }
+
+  const session = joinedId ? sessionQuery.data : undefined;
+
+  if (session?.status === 'draft') {
+    return (
+      <Navigate
+        to="/sessions/$sessionId/review"
+        params={{ sessionId: session.id }}
+        replace
+      />
+    );
+  }
+
+  if (!session || needsName(session)) {
+    return (
+      <JoinScreen>
+        <Card className="w-full rounded-2xl shadow-soft ring-0">
+          <CardContent>
+            <HeroIllustration className="rounded-xl" />
+          </CardContent>
+        </Card>
+        <JoinHeading
+          title="Join the session"
+          subtitle="Enter your name to start claiming items."
+        />
+        <JoinSessionForm
+          code={code}
+          onJoined={(joined) => setJoinedId(joined.id)}
+        />
+      </JoinScreen>
+    );
+  }
+
+  return <LiveSession session={session} />;
 }

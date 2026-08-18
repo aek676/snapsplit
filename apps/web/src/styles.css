@@ -85,14 +85,6 @@
   }
 }
 
-@utility surface-card {
-  width: 100%;
-  border-radius: var(--radius-2xl);
-  background-color: var(--color-surface);
-  padding: calc(var(--spacing) * 4);
-  box-shadow: var(--shadow-soft);
-}
-
 @utility hero-title {
   font-family: var(--font-serif);
   font-size: 32px;
