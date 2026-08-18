@@ -4,7 +4,7 @@ import { api, apiError } from '@/lib/api-client';
 import type { QueryConfig } from '@/lib/react-query';
 import type { Session } from '@/types/session';
 
-export const getSession = ({
+export const getSession = async ({
   sessionId,
 }: {
   sessionId: string;
@@ -17,6 +17,8 @@ export const getSession = ({
       return data;
     });
 };
+
+export const sessionMutationKey = (sessionId: string) => ['session', sessionId];
 
 export const getSessionQueryOptions = (sessionId: string) => {
   return queryOptions({
