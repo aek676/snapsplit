@@ -7,7 +7,6 @@ import {
   myShareCents,
   myUnits,
   remainingUnits,
-  unassignedUnits,
 } from '@/features/session/utils/claim-totals';
 import type { LineItem, Session } from '@/types/session';
 
@@ -76,11 +75,6 @@ describe('session totals', () => {
     }),
     lineItem({ id: 'l2', quantity: 2, unitPriceCents: 150 }),
   ]);
-
-  it('counts unassigned units across items', () => {
-    expect(unassignedUnits(fixture)).toBe(2);
-    expect(unassignedUnits(session([]))).toBe(0);
-  });
 
   it('sums collected cents', () => {
     expect(collectedCents(fixture)).toBe(600);

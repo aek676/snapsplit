@@ -20,10 +20,6 @@ export function myUnits(
   );
 }
 
-export function unassignedUnits(session: Pick<Session, 'lineItems'>): number {
-  return session.lineItems.reduce((sum, item) => sum + remainingUnits(item), 0);
-}
-
 export function collectedCents(session: Pick<Session, 'lineItems'>): number {
   return session.lineItems.reduce(
     (sum, item) => sum + claimedUnits(item) * item.unitPriceCents,
