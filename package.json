@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "dev": "nx run-many -t serve -p api web",
+    "preview": "nx run-many -t start preview -p api web",
     "dev:api": "nx serve api",
     "dev:web": "nx serve web",
     "build": "nx run-many -t build",
