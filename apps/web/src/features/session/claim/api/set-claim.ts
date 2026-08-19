@@ -48,6 +48,7 @@ export const useSetClaim = ({
 
   return useMutation({
     mutationKey,
+    scope: { id: `claim-${sessionId}` },
     onMutate: async (variables, ...rest) => {
       await queryClient.cancelQueries({ queryKey });
 
