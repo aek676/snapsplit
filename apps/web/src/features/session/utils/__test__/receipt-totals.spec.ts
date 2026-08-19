@@ -9,6 +9,7 @@ function lineItem(lineTotalCents: number) {
     unitPriceCents: lineTotalCents,
     lineTotalCents,
     aiConfidence: 1,
+    claims: [],
   };
 }
 

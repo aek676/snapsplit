@@ -8,7 +8,10 @@ import {
   spyOn,
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
-import { joinRateLimitContext } from '../../../plugins/rate-limit';
+import {
+  availabilityRateLimitContext,
+  joinRateLimitContext,
+} from '../../../plugins/rate-limit';
 import { Session } from '../../../schemas';
 import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
@@ -373,8 +376,9 @@ describe('GET /sessions/:sessionId', () => {
     const res = await app.handle(request(`/sessions/${session._id}`));
 
     const raw = await res.text();
-    expect(raw).not.toContain('participants');
+    expect(raw).not.toContain('deviceTokenHash');
     expect(raw).not.toContain(hashToken(OWNER_TOKEN));
+    expect(raw).not.toContain(hashToken(GUEST_TOKEN));
   });
 
   it('lets a guest read the session', async () => {
@@ -728,6 +732,61 @@ describe('POST /sessions/:sessionId/confirm', () => {
   });
 });
 
+describe('GET /sessions/join/:code', () => {
+  beforeEach(async () => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    await availabilityRateLimitContext.reset();
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('reports an open session as available, upcasing the code', async () => {
+    const exists = spyOn(Session, 'exists').mockResolvedValue({
+      _id: 'x',
+    } as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join/abcdefgh', { token: null }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: true });
+    expect(exists).toHaveBeenCalledWith({ code: 'ABCDEFGH', status: 'open' });
+  });
+
+  it('reports an unmatched code as unavailable', async () => {
+    spyOn(Session, 'exists').mockResolvedValue(null as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join/ABCDEFGH', { token: null }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: false });
+  });
+
+  it.each([
+    ['a short code', 'ABC'],
+    ['a code with excluded characters', 'ABCDEFG0'],
+  ])('returns 422 for %s', async (_label, code) => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${code}`, { token: null }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      type: 'validation',
+      on: 'params',
+    });
+  });
+});
+
 describe('POST /sessions/join/:code', () => {
   beforeEach(async () => {
     spyOn(console, 'error').mockImplementation(() => {});
@@ -792,5 +851,108 @@ describe('POST /sessions/join/:code', () => {
     expect(res.status).toBe(500);
     expect(await res.text()).toBe('Unexpected server error');
     expect(console.error).toHaveBeenCalled();
+  });
+});
+
+describe('PUT /sessions/:sessionId/line-items/:lineItemId/claim', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  function openSessionWithGuest() {
+    const session = sessionWithGuest();
+    session.status = 'open';
+    return session;
+  }
+
+  function mockClaimWrite(target: unknown) {
+    return spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+      _filter: unknown,
+      update: { $set: Record<string, unknown> },
+      options: { arrayFilters: [{ 'item._id': unknown }] },
+    ) => {
+      if (!target) return Promise.resolve(null);
+      const session = target as InstanceType<typeof Session>;
+      const lineItem = session.lineItems.id(
+        String(options.arrayFilters[0]['item._id']),
+      );
+      lineItem?.set('claims', update.$set['lineItems.$[item].claims']);
+      return Promise.resolve(target);
+    }) as never);
+  }
+
+  it('claims units for the participant behind the token, not the body', async () => {
+    const session = openSessionWithGuest();
+    const guestId = String(session.participants[1]._id);
+    mockLookup(session);
+    mockClaimWrite(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        {
+          method: 'PUT',
+          token: GUEST_TOKEN,
+          body: { units: 2, participantId: 'ignored-if-sent' },
+        },
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.lineItems[0].claims).toEqual([
+      { participantId: guestId, units: 2 },
+    ]);
+  });
+
+  it('rejects claims while the session is a draft', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        { method: 'PUT', token: GUEST_TOKEN, body: { units: 1 } },
+      ),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not open');
+  });
+
+  it('rejects negative units at the validation layer', async () => {
+    const session = openSessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        { method: 'PUT', token: GUEST_TOKEN, body: { units: -1 } },
+      ),
+    );
+
+    expect(res.status).toBe(422);
+  });
+
+  it('requires a bearer token', async () => {
+    const session = openSessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(
+        `/sessions/${session._id}/line-items/${session.lineItems[0]._id}/claim`,
+        { method: 'PUT', token: null, body: { units: 1 } },
+      ),
+    );
+
+    expect(res.status).toBe(401);
   });
 });

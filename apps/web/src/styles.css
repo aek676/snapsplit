@@ -12,10 +12,12 @@
 
   --color-surface: #ffffff;
   --color-surface-alt: #efe7f2;
+  --color-surface-muted: #f2ece7;
 
   --color-primary-pressed: #70519a;
   --color-primary-tint: #efe8f7;
   --color-gold: #c9a24b;
+  --color-gold-deep: #8a6a1f;
 
   --color-content-primary: #2a2530;
   --color-content-secondary: #6b6270;
@@ -83,14 +85,6 @@
     animation: none;
     opacity: 1;
   }
-}
-
-@utility surface-card {
-  width: 100%;
-  border-radius: var(--radius-2xl);
-  background-color: var(--color-surface);
-  padding: calc(var(--spacing) * 4);
-  box-shadow: var(--shadow-soft);
 }
 
 @utility hero-title {

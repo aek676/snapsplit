@@ -25,6 +25,11 @@ export const api: Treaty.Create<App> = treaty<App>(env.apiUrl, {
   },
 });
 
+export const streamApi: Treaty.Create<App> = treaty<App>(env.apiUrl, {
+  headers: (path) => authHeader(path),
+  parseDate: false,
+});
+
 async function fetcher(
   input: RequestInfo | URL,
   init?: RequestInit,

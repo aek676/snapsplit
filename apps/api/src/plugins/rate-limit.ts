@@ -6,7 +6,13 @@ const WINDOW_MS = 60_000;
 // address — successful joins and renames spend from the same budget as
 // guesses — while still capping enumeration of the 32^8 code space at a
 // harmless pace.
-const MAX_ATTEMPTS = 30;
+const MAX_JOIN_ATTEMPTS = 30;
+// Availability reads get their own budget so preflights (and their retries)
+// can never starve the join budget of a whole table behind one address. The
+// GET answers whether a code exists, so it still needs a cap of its own to
+// keep enumeration at the same harmless pace; being idempotent and repeated
+// freely by the UI, it affords a looser one.
+const MAX_AVAILABILITY_READS = 60;
 
 const UNKNOWN_CLIENT = 'unknown';
 
@@ -38,6 +44,7 @@ const clientKey = createClientKey(
 );
 
 export const joinRateLimitContext = new DefaultContext();
+export const availabilityRateLimitContext = new DefaultContext();
 
 const JOIN_PATH = /^\/sessions\/join\//;
 
@@ -47,13 +54,30 @@ function isJoinAttempt(request: Request) {
   );
 }
 
+function isAvailabilityRead(request: Request) {
+  return (
+    request.method === 'GET' && JOIN_PATH.test(new URL(request.url).pathname)
+  );
+}
+
 export const joinRateLimit = rateLimit({
   duration: WINDOW_MS,
-  max: MAX_ATTEMPTS,
+  max: MAX_JOIN_ATTEMPTS,
   scoping: 'scoped',
   generator: clientKey,
   context: joinRateLimitContext,
   countFailedRequest: true,
   skip: (request) => !isJoinAttempt(request),
+  errorResponse: SessionModel.tooManyJoinAttempts.const,
+});
+
+export const availabilityRateLimit = rateLimit({
+  duration: WINDOW_MS,
+  max: MAX_AVAILABILITY_READS,
+  scoping: 'scoped',
+  generator: clientKey,
+  context: availabilityRateLimitContext,
+  countFailedRequest: true,
+  skip: (request) => !isAvailabilityRead(request),
   errorResponse: SessionModel.tooManyJoinAttempts.const,
 });
