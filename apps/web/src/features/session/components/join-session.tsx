@@ -1,5 +1,4 @@
 import { useForm } from '@tanstack/react-form';
-import { Alert, AlertDescription } from 'shadcn-ui/alert';
 import { Button } from 'shadcn-ui/button';
 import { Field, FieldError, FieldGroup, FieldLabel } from 'shadcn-ui/field';
 import { Input } from 'shadcn-ui/input';
@@ -66,13 +65,6 @@ export function JoinSessionForm({ code, onJoined }: JoinSessionFormProps) {
           }}
         </form.Field>
       </FieldGroup>
-      {joinSession.isError && (
-        <Alert variant="destructive">
-          <AlertDescription className="text-center">
-            {joinSession.error.message}
-          </AlertDescription>
-        </Alert>
-      )}
       <form.Subscribe selector={(s) => s.canSubmit}>
         {(canSubmit) => (
           <Button

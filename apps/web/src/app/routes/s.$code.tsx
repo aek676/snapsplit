@@ -9,9 +9,10 @@ import { Spinner } from 'shadcn-ui/spinner';
 
 import { HeroIllustration } from '@/components/hero-illustration';
 import { useSession } from '@/features/session/api/get-session';
+import { useSessionAvailability } from '@/features/session/api/get-session-availability';
 import {
-    JoinHeading,
-    JoinScreen,
+  JoinHeading,
+  JoinScreen,
 } from '@/features/session/components/join-screen';
 import { JoinSessionForm } from '@/features/session/components/join-session';
 import { LiveSession } from '@/features/session/components/live-session';
@@ -34,7 +35,12 @@ function GuestJoinPage() {
     queryConfig: { enabled: Boolean(joinedId) },
   });
 
-  if (!isSessionCode(code)) {
+  const availabilityQuery = useSessionAvailability({
+    code,
+    queryConfig: { enabled: isSessionCode(code) && !joinedId },
+  });
+
+  if (!isSessionCode(code) || availabilityQuery.data?.available === false) {
     return (
       <JoinScreen>
         <JoinHeading
@@ -90,10 +96,16 @@ function GuestJoinPage() {
           title="Join the session"
           subtitle="Enter your name to start claiming items."
         />
-        <JoinSessionForm
-          code={code}
-          onJoined={(joined) => setJoinedId(joined.id)}
-        />
+        {!joinedId && availabilityQuery.isPending ? (
+          <div className="flex min-h-27 items-center justify-center">
+            <Spinner className="size-8" />
+          </div>
+        ) : (
+          <JoinSessionForm
+            code={code}
+            onJoined={(joined) => setJoinedId(joined.id)}
+          />
+        )}
       </JoinScreen>
     );
   }
