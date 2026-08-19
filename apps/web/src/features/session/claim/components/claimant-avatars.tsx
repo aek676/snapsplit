@@ -30,7 +30,7 @@ export function ClaimantAvatars({
             <AvatarFallback
               className={cn(
                 'label-nav border',
-                isMe ? 'bg-gold/15 text-gold' : 'bg-primary-tint text-primary',
+                isMe ? 'bg-gold/15 text-gold-deep' : 'bg-primary-tint text-primary',
               )}
             >
               {initials(participant?.name ?? null)}
