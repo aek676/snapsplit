@@ -38,9 +38,7 @@ export function LineItemRowShell({
             className="unit-meta text-content-secondary"
           />
         </div>
-        <Badge variant="neutral">
-          x{lineItem.quantity}
-        </Badge>
+        <Badge variant="neutral">x{lineItem.quantity}</Badge>
         {children}
       </div>
       {footer}
