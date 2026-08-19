@@ -44,9 +44,9 @@ export function LiveSession({ session }: { session: Session }) {
           </ul>
         </div>
       </main>
-      <div className="fixed bottom-0 left-0 z-40 w-full border-t border-border bg-surface shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
+      <div className="fixed bottom-0 left-0 z-40 w-full bg-content-primary shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
         <div className="mx-auto flex min-h-20 w-full max-w-160 items-center justify-between px-5 py-4">
-          <span className="eyebrow text-content-secondary">Your share</span>
+          <span className="eyebrow text-content-tertiary">Your share</span>
           <Money
             cents={myShareCents(session, participantId)}
             currency={session.currency}
@@ -100,7 +100,7 @@ function CollectedCard({ session }: { session: Session }) {
           <Money
             cents={collectedCents(session)}
             currency={session.currency}
-            className="hero-title text-gold"
+            className="hero-title"
           />
           <span className="screen-title text-content-tertiary">/</span>
           <Money

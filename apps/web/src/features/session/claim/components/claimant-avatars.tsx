@@ -26,10 +26,10 @@ export function ClaimantAvatars({
         const isMe = claim.participantId === participantId;
         const participant = byId.get(claim.participantId);
         return (
-          <Avatar key={claim.participantId} className="size-6 after:hidden">
+          <Avatar key={claim.participantId} className="size-6">
             <AvatarFallback
               className={cn(
-                'label-nav',
+                'label-nav border',
                 isMe ? 'bg-gold/15 text-gold' : 'bg-primary-tint text-primary',
               )}
             >
