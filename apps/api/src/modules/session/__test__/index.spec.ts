@@ -8,7 +8,10 @@ import {
   spyOn,
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
-import { joinRateLimitContext } from '../../../plugins/rate-limit';
+import {
+  availabilityRateLimitContext,
+  joinRateLimitContext,
+} from '../../../plugins/rate-limit';
 import { Session } from '../../../schemas';
 import type { ObjectStorage } from '../../../storage/object-storage';
 import { hashToken } from '../../auth/service';
@@ -726,6 +729,61 @@ describe('POST /sessions/:sessionId/confirm', () => {
 
     expect(res.status).toBe(409);
     expect(await res.text()).toBe('Session is not editable');
+  });
+});
+
+describe('GET /sessions/join/:code', () => {
+  beforeEach(async () => {
+    spyOn(console, 'error').mockImplementation(() => {});
+    await availabilityRateLimitContext.reset();
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('reports an open session as available, upcasing the code', async () => {
+    const exists = spyOn(Session, 'exists').mockResolvedValue({
+      _id: 'x',
+    } as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join/abcdefgh', { token: null }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: true });
+    expect(exists).toHaveBeenCalledWith({ code: 'ABCDEFGH', status: 'open' });
+  });
+
+  it('reports an unmatched code as unavailable', async () => {
+    spyOn(Session, 'exists').mockResolvedValue(null as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join/ABCDEFGH', { token: null }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: false });
+  });
+
+  it.each([
+    ['a short code', 'ABC'],
+    ['a code with excluded characters', 'ABCDEFG0'],
+  ])('returns 422 for %s', async (_label, code) => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${code}`, { token: null }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      type: 'validation',
+      on: 'params',
+    });
   });
 });
 

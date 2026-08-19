@@ -47,6 +47,10 @@ function join(code: string, name: string, token?: string, scheme = 'Bearer') {
   );
 }
 
+function availability(code: string) {
+  return app.handle(new Request(`http://localhost/sessions/join/${code}`));
+}
+
 async function storedParticipants(sessionId: string) {
   const raw = await Session.collection.findOne({
     _id: new Types.ObjectId(sessionId),
@@ -243,6 +247,30 @@ describe('joining a session that cannot be joined', () => {
   });
 });
 
+describe('checking a share code before joining', () => {
+  it('reports an open session as available', async () => {
+    const session = await createOpenSession();
+
+    const res = await availability(session.code);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: true });
+  });
+
+  it('answers an unknown code and a closed session identically', async () => {
+    const session = await createOpenSession();
+    await Session.updateOne({ code: session.code }, { status: 'closed' });
+
+    const closed = await availability(session.code);
+    const unknown = await availability('ABCDEFGH');
+
+    expect(closed.status).toBe(200);
+    expect(unknown.status).toBe(200);
+    expect(await closed.json()).toEqual({ available: false });
+    expect(await unknown.json()).toEqual({ available: false });
+  });
+});
+
 describe('guessing share codes', () => {
   it('throttles a caller after 30 attempts in the window', async () => {
     const attempts = [];
@@ -268,5 +296,22 @@ describe('guessing share codes', () => {
 
     expect(res.status).toBe(429);
     expect(await storedParticipants(session.id)).toHaveLength(1);
+  });
+
+  it('meters availability checks against their own budget', async () => {
+    for (let attempt = 0; attempt < 60; attempt++)
+      await availability('ABCDEFGH');
+
+    const throttled = await availability('ABCDEFGH');
+
+    expect(throttled.status).toBe(429);
+    expect(await throttled.text()).toBe(
+      'Too many join attempts. Try again in a minute.',
+    );
+
+    const session = await createOpenSession();
+    const joined = await join(session.code, 'Marta');
+
+    expect(joined.status).toBe(200);
   });
 });

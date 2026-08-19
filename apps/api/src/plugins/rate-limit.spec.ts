@@ -2,15 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { Elysia, status } from 'elysia';
 import { SessionModel } from '../modules/session/model';
 import {
+  availabilityRateLimit,
+  availabilityRateLimitContext,
   createClientKey,
   joinRateLimit,
   joinRateLimitContext,
 } from './rate-limit';
 
-const MAX_ATTEMPTS = 30;
+const MAX_JOIN_ATTEMPTS = 30;
+const MAX_AVAILABILITY_READS = 60;
 
 const app = new Elysia({ prefix: '/sessions' })
   .use(joinRateLimit)
+  .use(availabilityRateLimit)
   .post('/join/:code', ({ params }) => {
     if (params.code === 'BOOMBOOM') throw new Error('boom');
     return params.code === 'OPENOPEN'
@@ -26,8 +30,18 @@ function join(code = 'ABCDEFGH') {
   );
 }
 
+function checkAvailability(code = 'ABCDEFGH') {
+  return app.handle(new Request(`http://localhost/sessions/join/${code}`));
+}
+
 async function exhaustTheWindow(code?: string) {
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) await join(code);
+  for (let attempt = 0; attempt < MAX_JOIN_ATTEMPTS; attempt++)
+    await join(code);
+}
+
+async function exhaustTheAvailabilityWindow() {
+  for (let attempt = 0; attempt < MAX_AVAILABILITY_READS; attempt++)
+    await checkAvailability();
 }
 
 describe('client key', () => {
@@ -81,18 +95,20 @@ describe('client key', () => {
 describe('join rate limit', () => {
   beforeEach(async () => {
     await joinRateLimitContext.reset();
+    await availabilityRateLimitContext.reset();
   });
 
   afterEach(async () => {
     await joinRateLimitContext.reset();
+    await availabilityRateLimitContext.reset();
   });
 
-  it(`lets ${MAX_ATTEMPTS} attempts through and throttles the next one`, async () => {
+  it(`lets ${MAX_JOIN_ATTEMPTS} attempts through and throttles the next one`, async () => {
     const allowed = [];
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++)
+    for (let attempt = 0; attempt < MAX_JOIN_ATTEMPTS; attempt++)
       allowed.push((await join('OPENOPEN')).status);
 
-    expect(allowed).toEqual(Array(MAX_ATTEMPTS).fill(200));
+    expect(allowed).toEqual(Array(MAX_JOIN_ATTEMPTS).fill(200));
 
     const res = await join('OPENOPEN');
 
@@ -115,9 +131,9 @@ describe('join rate limit', () => {
   it('advertises the remaining budget', async () => {
     const res = await join();
 
-    expect(res.headers.get('RateLimit-Limit')).toBe(String(MAX_ATTEMPTS));
+    expect(res.headers.get('RateLimit-Limit')).toBe(String(MAX_JOIN_ATTEMPTS));
     expect(res.headers.get('RateLimit-Remaining')).toBe(
-      String(MAX_ATTEMPTS - 1),
+      String(MAX_JOIN_ATTEMPTS - 1),
     );
     expect(Number(res.headers.get('RateLimit-Reset'))).toBeGreaterThan(0);
   });
@@ -132,7 +148,7 @@ describe('join rate limit', () => {
   });
 
   it('spends no budget on the other session routes', async () => {
-    for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt++)
+    for (let attempt = 0; attempt <= MAX_JOIN_ATTEMPTS; attempt++)
       await app.handle(
         new Request(
           'http://localhost/sessions/507f191e810c19729de860ea/confirm',
@@ -145,11 +161,25 @@ describe('join rate limit', () => {
     expect((await join('OPENOPEN')).status).toBe(200);
   });
 
-  it('spends no budget on reads of the same path', async () => {
-    for (let attempt = 0; attempt <= MAX_ATTEMPTS; attempt++)
-      await app.handle(new Request('http://localhost/sessions/join/ABCDEFGH'));
+  it(`lets ${MAX_AVAILABILITY_READS} availability reads through and throttles the next one`, async () => {
+    await exhaustTheAvailabilityWindow();
+
+    const res = await checkAvailability();
+
+    expect(res.status).toBe(429);
+    expect(await res.text()).toBe(SessionModel.tooManyJoinAttempts.const);
+  });
+
+  it('keeps the join budget untouched by availability reads', async () => {
+    await exhaustTheAvailabilityWindow();
 
     expect((await join('OPENOPEN')).status).toBe(200);
+  });
+
+  it('keeps the availability budget untouched by join attempts', async () => {
+    await exhaustTheWindow();
+
+    expect((await checkAvailability()).status).toBe(200);
   });
 
   it('frees the caller once the window is reset', async () => {
