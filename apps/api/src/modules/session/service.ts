@@ -22,6 +22,7 @@ import { SessionModel } from './model';
 const CODE_ATTEMPTS = 5;
 const CLAIM_ATTEMPTS = 3;
 const MAX_PARTICIPANTS = 30;
+const CLOSE_ATTEMPTS = 3;
 
 export function generateSessionCode() {
   const bytes = new Uint8Array(SESSION_CODE_LENGTH);
@@ -76,6 +77,11 @@ export function lineSumCents(session: HydratedDocument<Session>): number {
   return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
 }
 
+export function hasUnassignedUnits(session: HydratedDocument<Session>) {
+  return session.lineItems.some((item) => claimedUnits(item) < item.quantity);
+}
+
+
 export function toSessionView(
   session: HydratedDocument<Session>,
 ): SessionModel['draftSessionResponse'] {
@@ -89,6 +95,7 @@ export function toSessionView(
     totalCents: session.totalCents,
     totalSource: session.totalSource,
     receiptImageUrl: session.receiptImageUrl,
+    closedAt: session.closedAt ? session.closedAt.toISOString() : null,
     lineItems: session.lineItems.map((item) => ({
       id: String(item._id),
       name: item.name,
@@ -288,6 +295,34 @@ export class SessionService {
       `Exhausted ${CODE_ATTEMPTS} code attempts for session ${session._id}`,
     );
     return status(500, SessionModel.codeGenerationFailed.const);
+  }
+
+  async closeSession(session: HydratedDocument<Session>) {
+    for (let attempt = 0; attempt < CLOSE_ATTEMPTS; attempt++) {
+      const doc = attempt === 0 ? session : await Session.findById(session._id);
+      if (!doc) return status(404, SessionModel.sessionNotFound.const);
+
+      if (doc.status !== 'open')
+        return status(409, SessionModel.sessionNotOpen.const);
+
+      if (hasUnassignedUnits(doc))
+        return status(409, SessionModel.sessionHasUnassignedUnits.const);
+
+      const closed = await Session.findOneAndUpdate(
+        { _id: doc._id, status: 'open', __v: doc.__v },
+        { $set: { status: 'closed', closedAt: new Date() }, $inc: { __v: 1 } },
+        { returnDocument: 'after' },
+      );
+
+      if (closed) {
+        this.events.publish(String(closed._id), {
+          type: 'session-closed',
+          at: new Date().toISOString(),
+        });
+        return toSessionView(closed);
+      }
+    }
+    return status(409, SessionModel.closeConflict.const);
   }
 
   async sessionAvailability(rawCode: string) {
