@@ -2,7 +2,7 @@ import { unwrapSchema } from '@elysiajs/openapi/openapi';
 import { Elysia, sse, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
-import { joinRateLimit } from '../../plugins/rate-limit';
+import { availabilityRateLimit, joinRateLimit } from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
 import { type SessionEvent, sessionEvents } from './events';
@@ -16,6 +16,7 @@ export function createSessionModule(service: SessionService) {
   })
     .use(authPlugin)
     .use(joinRateLimit)
+    .use(availabilityRateLimit)
     .onError(({ code, error, status }) => {
       if (code === 'VALIDATION') return;
       console.error('Unexpected error in sessions module:', error);
@@ -255,6 +256,22 @@ export function createSessionModule(service: SessionService) {
               },
             },
           },
+        },
+      },
+    )
+    .get(
+      '/join/:code',
+      ({ params }) => service.sessionAvailability(params.code),
+      {
+        params: SessionModel.joinParams,
+        response: {
+          200: SessionModel.sessionAvailabilityResponse,
+          429: SessionModel.tooManyJoinAttempts,
+          500: SessionModel.internalError,
+        },
+        detail: {
+          summary: 'Check whether a share code can be joined',
+          tags: ['Sessions'],
         },
       },
     )

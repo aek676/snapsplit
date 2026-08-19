@@ -301,6 +301,14 @@ export class SessionService {
     return status(500, SessionModel.codeGenerationFailed.const);
   }
 
+  async sessionAvailability(rawCode: string) {
+    const exists = await Session.exists({
+      code: rawCode.toUpperCase(),
+      status: 'open',
+    });
+    return { available: Boolean(exists) };
+  }
+
   async joinSession(rawCode: string, name: string, callerToken?: string) {
     const code = rawCode.toUpperCase();
     if (callerToken) {
