@@ -1,11 +1,12 @@
-import { Badge } from 'shadcn-ui/badge';
+import { cn } from 'shadcn-ui-utils';
 import { Money } from '@/components/ui/money';
 import type { LineItem } from '@/types/session';
 
 type LineItemRowShellProps = {
-  lineItem: Pick<LineItem, 'name' | 'quantity' | 'unitPriceCents'>;
+  lineItem: Pick<LineItem, 'name' | 'unitPriceCents'>;
   currency: string;
   flag?: string;
+  muted?: boolean;
   children?: React.ReactNode;
   footer?: React.ReactNode;
 };
@@ -14,14 +15,17 @@ export function LineItemRowShell({
   lineItem,
   currency,
   flag,
+  muted,
   children,
   footer,
 }: LineItemRowShellProps) {
   return (
     <li
-      className={`relative border-b border-border px-4 pb-5 ${
-        flag ? 'border-l-[3px] border-l-warning pt-8' : 'pt-5'
-      }`}
+      className={cn(
+        'relative border-b border-border px-4 pb-5',
+        flag ? 'border-l-[3px] border-l-warning pt-8' : 'pt-5',
+        muted && 'bg-surface-muted',
+      )}
     >
       {flag && (
         <span className="absolute top-2 left-4 eyebrow text-warning">
@@ -38,7 +42,6 @@ export function LineItemRowShell({
             className="unit-meta text-content-secondary"
           />
         </div>
-        <Badge variant="neutral">x{lineItem.quantity}</Badge>
         {children}
       </div>
       {footer}

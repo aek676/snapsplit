@@ -1,4 +1,5 @@
 import { LOW_CONFIDENCE_THRESHOLD } from '@repo/shared-types';
+import { Badge } from 'shadcn-ui/badge';
 import { Money } from '@/components/ui/money';
 import { LineItemRowShell } from '@/features/session/components/line-item-row-shell';
 import { DeleteLineItem } from '@/features/session/line-item/components/delete-line-item';
@@ -24,6 +25,7 @@ export function LineItemRow({
       currency={currency}
       flag={lowConfidence ? 'Check this' : undefined}
     >
+      <Badge variant="neutral">x{lineItem.quantity}</Badge>
       <Money
         cents={lineItem.lineTotalCents}
         currency={currency}
