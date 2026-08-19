@@ -1265,7 +1265,7 @@ describe('SessionService.setClaim', () => {
 
     expect(result).toMatchObject({
       code: 409,
-      response: 'Not enough units available',
+      response: 'Claim conflicted, please retry',
     });
     expect(events.publish).not.toHaveBeenCalled();
   });

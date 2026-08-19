@@ -110,6 +110,7 @@ export const SessionModel = {
   sessionNotOpen: t.Literal('Session is not open'),
   sessionNotFound: t.Literal('Session not found'),
   notEnoughUnits: t.Literal('Not enough units available'),
+  claimConflict: t.Literal('Claim conflicted, please retry'),
   tooManyJoinAttempts: t.Literal(
     'Too many join attempts. Try again in a minute.',
   ),

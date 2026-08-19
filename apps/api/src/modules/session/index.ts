@@ -202,6 +202,7 @@ export function createSessionModule(service: SessionService) {
           409: t.Union([
             SessionModel.sessionNotOpen,
             SessionModel.notEnoughUnits,
+            SessionModel.claimConflict,
           ]),
           500: SessionModel.internalError,
         },

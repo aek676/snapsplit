@@ -429,6 +429,6 @@ export class SessionService {
         return toSessionView(updated);
       }
     }
-    return status(409, SessionModel.notEnoughUnits.const);
+    return status(409, SessionModel.claimConflict.const);
   }
 }
