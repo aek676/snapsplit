@@ -4,7 +4,6 @@ import { useState } from 'react';
 
 import { Alert, AlertDescription } from 'shadcn-ui/alert';
 import { Button } from 'shadcn-ui/button';
-import { Card, CardContent } from 'shadcn-ui/card';
 import { Spinner } from 'shadcn-ui/spinner';
 
 import { HeroIllustration } from '@/components/hero-illustration';
@@ -43,6 +42,9 @@ function GuestJoinPage() {
   if (!isSessionCode(code) || availabilityQuery.data?.available === false) {
     return (
       <JoinScreen>
+        <div className="w-full overflow-hidden rounded-xl bg-surface shadow-(--shadow-soft)">
+          <HeroIllustration />
+        </div>
         <JoinHeading
           title="This link looks broken"
           subtitle="Ask whoever paid to share the link again."
@@ -87,11 +89,9 @@ function GuestJoinPage() {
   if (!session || needsName(session)) {
     return (
       <JoinScreen>
-        <Card className="w-full rounded-2xl shadow-soft ring-0">
-          <CardContent>
-            <HeroIllustration className="rounded-xl" />
-          </CardContent>
-        </Card>
+        <div className="w-full overflow-hidden rounded-xl bg-surface shadow-(--shadow-soft)">
+          <HeroIllustration />
+        </div>
         <JoinHeading
           title="Join the session"
           subtitle="Enter your name to start claiming items."
