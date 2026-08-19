@@ -4,6 +4,7 @@ import { Card, CardContent } from 'shadcn-ui/card';
 import { toast } from 'shadcn-ui/toast';
 
 import { Money } from '@/components/ui/money';
+import { Wordmark } from '@/components/wordmark';
 import { useSessionEvents } from '@/features/session/api/session-events';
 import { ClaimLineItemRow } from '@/features/session/claim/components/claim-line-item-row';
 import {
@@ -20,8 +21,9 @@ export function LiveSession({ session }: { session: Session }) {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-160 flex-col pb-32">
-      <header className="sticky top-0 z-40 flex h-16 items-center gap-2 border-b border-border bg-background px-5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <header className="sticky top-0 z-40 flex min-h-16 items-center gap-2 border-b border-border bg-background px-5 py-2">
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <Wordmark className="text-[14px] leading-4" />
           <h1 className="truncate screen-title">
             {session.merchant ?? 'Receipt'}
           </h1>
