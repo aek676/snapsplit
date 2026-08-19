@@ -994,6 +994,7 @@ function openSession() {
     buildDraftPayload(deviceTokenHash, extracted, '/receipts/abc.jpg'),
   );
   session.status = 'open';
+  session.set('__v', 7);
   session.participants.push({
     name: 'Luis',
     deviceTokenHash: hashToken('guest-token'),
@@ -1076,7 +1077,7 @@ describe('SessionService.setClaim', () => {
       { participantId: me, units: 2 },
     ]);
     expect(attempts).toHaveLength(1);
-    expect(attempts[0].filter).toMatchObject({ status: 'open' });
+    expect(attempts[0].filter).toMatchObject({ status: 'open', __v: 7 });
     expect(events.publish).toHaveBeenCalledWith(String(session._id), {
       type: 'claims-updated',
       at: expect.any(String),
@@ -1240,12 +1241,17 @@ describe('SessionService.setClaim', () => {
     const write = spyOn(Session, 'findOneAndUpdate')
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(session);
-    spyOn(Session, 'findById').mockResolvedValue(session);
+    spyOn(Session, 'findById').mockImplementation((async () => {
+      session.set('__v', 8);
+      return session;
+    }) as never);
     const { service } = serviceWith();
 
     const result = await service.setClaim(session, me, lineItemId, 1);
 
     expect(write).toHaveBeenCalledTimes(2);
+    expect(write.mock.calls[0][0]).toMatchObject({ __v: 7 });
+    expect(write.mock.calls[1][0]).toMatchObject({ __v: 8 });
     expect(result).toMatchObject({ status: 'open' });
   });
 
