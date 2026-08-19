@@ -26,7 +26,7 @@ export function ClaimLineItemRow({
     <LineItemRowShell
       lineItem={lineItem}
       currency={session.currency}
-      flag={remaining > 0 ? 'Unassigned' : undefined}
+      muted={remaining === 0}
       footer={
         lineItem.claims.length > 0 && (
           <ClaimantAvatars
@@ -40,7 +40,7 @@ export function ClaimLineItemRow({
       <ClaimStepper
         itemName={lineItem.name}
         units={units}
-        canIncrement={remaining > 0}
+        remaining={remaining}
         disabled={disabled || !participantId}
         onChange={(next) =>
           setClaim.mutate({

@@ -5,7 +5,7 @@ import { ButtonGroup, ButtonGroupText } from 'shadcn-ui/button-group';
 type ClaimStepperProps = {
   itemName: string;
   units: number;
-  canIncrement: boolean;
+  remaining: number;
   disabled?: boolean;
   onChange: (units: number) => void;
 };
@@ -13,7 +13,7 @@ type ClaimStepperProps = {
 export function ClaimStepper({
   itemName,
   units,
-  canIncrement,
+  remaining,
   disabled,
   onChange,
 }: ClaimStepperProps) {
@@ -28,12 +28,14 @@ export function ClaimStepper({
       >
         <MinusIcon />
       </Button>
-      <ButtonGroupText>{units}</ButtonGroupText>
+      <ButtonGroupText className="min-w-12 justify-center">
+        {remaining} left
+      </ButtonGroupText>
       <Button
         variant="outline"
         size="icon"
         aria-label={`Claim one more ${itemName}`}
-        disabled={disabled || !canIncrement}
+        disabled={disabled || remaining === 0}
         onClick={() => onChange(units + 1)}
       >
         <PlusIcon />
