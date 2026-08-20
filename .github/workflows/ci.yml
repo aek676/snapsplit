@@ -58,4 +58,6 @@ jobs:
         run: bunx nx sync:check
 
       - name: Format, lint, typecheck, test & build (affected)
+        env:
+          VITE_API_URL: https://api.invalid
         run: bunx nx affected -t format:check lint tsc:typecheck test test:integration build
