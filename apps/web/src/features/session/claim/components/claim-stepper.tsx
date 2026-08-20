@@ -20,7 +20,6 @@ export function ClaimStepper({
   return (
     <ButtonGroup>
       <Button
-        variant="outline"
         size="icon"
         aria-label={`Claim one less ${itemName}`}
         disabled={disabled || units === 0}
@@ -32,7 +31,6 @@ export function ClaimStepper({
         {remaining} left
       </ButtonGroupText>
       <Button
-        variant="outline"
         size="icon"
         aria-label={`Claim one more ${itemName}`}
         disabled={disabled || remaining === 0}

@@ -26,23 +26,14 @@ export function ClaimantAvatars({
         const isMe = claim.participantId === participantId;
         const participant = byId.get(claim.participantId);
         return (
-          <Avatar key={claim.participantId} className="size-6">
-            <AvatarFallback
-              className={cn(
-                'label-nav border',
-                isMe
-                  ? 'bg-gold/10 text-gold-deep'
-                  : 'bg-primary-tint text-primary-pressed',
-              )}
-            >
+          <Avatar
+            key={claim.participantId}
+            className={cn(!isMe && 'grayscale')}
+          >
+            <AvatarFallback className="border-2">
               {initials(participant?.name ?? null)}
             </AvatarFallback>
-            <AvatarBadge
-              className={cn(
-                '-top-1.5 -right-1.5 bottom-auto h-3.5! w-auto! min-w-3.5 px-1 text-[10px] leading-none',
-                isMe ? 'bg-gold text-white' : 'bg-primary text-white',
-              )}
-            >
+            <AvatarBadge className="-top-1.5 -right-1.5 bottom-auto h-3.5! w-auto! min-w-3.5 px-1 text-[10px] leading-none">
               {claim.units}
             </AvatarBadge>
           </Avatar>

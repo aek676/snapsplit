@@ -56,14 +56,14 @@ export function LiveSession({ session }: { session: Session }) {
           </ul>
         </div>
       </main>
-      <div className="fixed bottom-0 left-0 z-40 w-full bg-content-primary shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
-        <div className="mx-auto flex min-h-20 w-full max-w-160 items-center justify-between gap-4 px-5 py-4">
-          <div className="flex flex-col">
-            <span className="eyebrow text-content-tertiary">Your share</span>
+      <div className="fixed bottom-0 left-0 z-40 w-full border-t border-border bg-surface shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
+        <div className="mx-auto flex min-h-20 w-full max-w-160 items-center justify-between gap-3 px-5 py-4">
+          <div className="flex min-w-0 flex-col">
+            <span className="eyebrow text-content-secondary">Your share</span>
             <Money
               cents={myShareCents(session, participantId)}
               currency={session.currency}
-              className="hero-title text-gold"
+              className="hero-title tabular-nums text-primary"
             />
           </div>
           {isOwner && isOpen && <CloseSessionButton session={session} />}
