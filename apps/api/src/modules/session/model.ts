@@ -109,6 +109,7 @@ export const SessionModel = {
   sessionTotalMismatch: t.Literal('Items do not add up to the receipt total'),
   sessionNotOpen: t.Literal('Session is not open'),
   sessionNotFound: t.Literal('Session not found'),
+  sessionFull: t.Literal('Session is full'),
   notEnoughUnits: t.Literal('Not enough units available'),
   claimConflict: t.Literal('Claim conflicted, please retry'),
   tooManyJoinAttempts: t.Literal(

@@ -855,6 +855,44 @@ describe('POST /sessions/join/:code', () => {
     expect(console.error).toHaveBeenCalled();
   });
 
+  it('returns 409 when the session is open but full', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockImplementation((() =>
+      Promise.resolve(null)) as never);
+    spyOn(Session, 'exists').mockImplementation((() =>
+      Promise.resolve({ _id: 'x' })) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${CODE}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is full');
+  });
+
+  it('returns 404 when no open session carries the code', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockImplementation((() =>
+      Promise.resolve(null)) as never);
+    spyOn(Session, 'exists').mockImplementation((() =>
+      Promise.resolve(null)) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${CODE}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Session not found');
+  });
+
   it('does not map a malformed JSON body to 500', async () => {
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
