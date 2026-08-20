@@ -17,6 +17,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   localStorage.clear();
 });
 
@@ -30,7 +31,15 @@ describe('expireSession', () => {
 
     expect(expireSession(url)).toBe(true);
     expect(getToken(SESSION_ID)).toBeNull();
-    expect(assign).toHaveBeenCalledWith('/');
+    expect(assign).toHaveBeenCalledWith(import.meta.env.BASE_URL);
+  });
+
+  it('leaves to the configured base path', () => {
+    vi.stubEnv('BASE_URL', '/snapsplit/');
+    setToken(SESSION_ID, auth);
+
+    expect(expireSession(`${API}/sessions/${SESSION_ID}`)).toBe(true);
+    expect(assign).toHaveBeenCalledWith('/snapsplit/');
   });
 
   it('keeps the tokens of the other sessions', () => {
