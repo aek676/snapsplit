@@ -8,5 +8,9 @@ declare module 'bun' {
     GCS_BUCKET: string;
     GCS_EMULATOR_HOST?: string;
     TRUST_PROXY?: string;
+    CORS_ORIGIN?: string;
+    NODE_ENV?: string;
+    PORT?: string;
+    RECEIPT_SUM_TOLERANCE_CENTS?: string;
   }
 }

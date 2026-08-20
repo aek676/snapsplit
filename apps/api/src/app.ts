@@ -1,11 +1,12 @@
 import { cors } from '@elysiajs/cors';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
+import { parseCorsOrigin } from './config/cors';
 import { receiptModule } from './modules/receipt';
 import { sessionModule } from './modules/session';
 
 export const app = new Elysia()
-  .use(cors())
+  .use(cors({ origin: parseCorsOrigin(Bun.env.CORS_ORIGIN) }))
   .use(
     openapi({
       documentation: {
