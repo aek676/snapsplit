@@ -852,6 +852,22 @@ describe('POST /sessions/join/:code', () => {
     expect(await res.text()).toBe('Unexpected server error');
     expect(console.error).toHaveBeenCalled();
   });
+
+  it('does not map a malformed JSON body to 500', async () => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      new Request(`http://localhost/sessions/join/${CODE}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: 'not-json',
+      }),
+    );
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+    expect(console.error).not.toHaveBeenCalled();
+  });
 });
 
 describe('PUT /sessions/:sessionId/line-items/:lineItemId/claim', () => {

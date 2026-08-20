@@ -18,7 +18,8 @@ export function createSessionModule(service: SessionService) {
     .use(joinRateLimit)
     .use(availabilityRateLimit)
     .onError(({ code, error, status }) => {
-      if (code === 'VALIDATION') return;
+      if (code === 'VALIDATION' || code === 'NOT_FOUND' || code === 'PARSE')
+        return;
       console.error('Unexpected error in sessions module:', error);
       return status(500, SessionModel.internalError.const);
     })
