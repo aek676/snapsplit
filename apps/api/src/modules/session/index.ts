@@ -9,11 +9,14 @@ import {
 } from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
-import { type SessionEvent, sessionEvents } from './events';
+import { type SessionEvent, type SessionEvents, sessionEvents } from './events';
 import { SessionModel } from './model';
 import { SessionService, toSessionView } from './service';
 
-export function createSessionModule(service: SessionService) {
+export function createSessionModule(
+  service: SessionService,
+  events: SessionEvents = sessionEvents,
+) {
   return new Elysia({
     prefix: '/sessions',
     name: 'sessions',
@@ -230,7 +233,7 @@ export function createSessionModule(service: SessionService) {
           } satisfies SessionEvent,
         });
         try {
-          for await (const event of sessionEvents.subscribe(
+          for await (const event of events.subscribe(
             String(session._id),
             request.signal,
           )) {
