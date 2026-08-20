@@ -4,7 +4,11 @@ import { z } from 'zod';
 
 const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 const MAX_ATTEMPTS = Number(Bun.env.RECEIPT_EXTRACTION_MAX_ATTEMPTS ?? 3);
-const SUM_TOLERANCE_CENTS = 0;
+// Line sums rarely hit the printed total to the cent (rounding, service
+// charges, unreadable discount lines), and every retry costs another Gemini
+// call. Drift within this bound is accepted as-is; confirming still demands
+// an exact match, so the owner reviews any residual gap either way.
+const SUM_TOLERANCE_CENTS = Number(Bun.env.RECEIPT_SUM_TOLERANCE_CENTS ?? 50);
 
 const wordSegmenter = new Intl.Segmenter('es', { granularity: 'word' });
 
