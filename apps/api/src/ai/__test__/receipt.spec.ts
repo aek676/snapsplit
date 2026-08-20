@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { MockLanguageModelV4 } from 'ai/test';
-import type { ExtractedReceipt } from './receipt';
+import type { ExtractedReceipt } from '../receipt';
 
 const consistent: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -49,7 +49,7 @@ mock.module('@ai-sdk/google', () => ({ google }));
 Bun.env.RECEIPT_SUM_TOLERANCE_CENTS = '50';
 
 const { extractReceipt, isReceiptConsistent, receiptScore, receiptSchema } =
-  await import('./receipt');
+  await import('../receipt');
 
 const withOutputs = (...raws: unknown[]) => {
   model = new MockLanguageModelV4({

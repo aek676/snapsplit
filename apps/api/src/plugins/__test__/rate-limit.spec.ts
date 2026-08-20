@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { Elysia, status } from 'elysia';
-import { SessionModel } from '../modules/session/model';
+import { SessionModel } from '../../modules/session/model';
 import {
   analyzeRateLimit,
   analyzeRateLimitContext,
@@ -9,7 +9,7 @@ import {
   createClientKey,
   joinRateLimit,
   joinRateLimitContext,
-} from './rate-limit';
+} from '../rate-limit';
 
 const MAX_JOIN_ATTEMPTS = 30;
 const MAX_AVAILABILITY_READS = 60;
