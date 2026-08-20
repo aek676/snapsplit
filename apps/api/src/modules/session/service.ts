@@ -3,6 +3,7 @@ import {
   SESSION_CODE_ALPHABET,
   SESSION_CODE_LENGTH,
 } from '@repo/shared-types';
+import { claimedUnits } from '@repo/split-logic';
 import { status } from 'elysia';
 import { type HydratedDocument, Types } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
@@ -74,19 +75,6 @@ export function buildDraftPayload(
 
 export function lineSumCents(session: HydratedDocument<Session>): number {
   return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
-}
-
-export function claimedUnits(
-  lineItem: LineItem,
-  excludeParticipantId?: string,
-): number {
-  return lineItem.claims.reduce(
-    (sum, claim) =>
-      String(claim.participantId) === excludeParticipantId
-        ? sum
-        : sum + claim.units,
-    0,
-  );
 }
 
 export function toSessionView(
