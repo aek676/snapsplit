@@ -114,6 +114,9 @@ export const SessionModel = {
   tooManyJoinAttempts: t.Literal(
     'Too many join attempts. Try again in a minute.',
   ),
+  tooManyAnalyzeAttempts: t.Literal(
+    'Too many receipts analyzed. Try again in an hour.',
+  ),
   codeGenerationFailed: t.Literal('Failed to generate a session code'),
 } as const;
 

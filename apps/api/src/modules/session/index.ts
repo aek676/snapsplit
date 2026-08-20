@@ -2,7 +2,11 @@ import { unwrapSchema } from '@elysiajs/openapi/openapi';
 import { Elysia, sse, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
-import { availabilityRateLimit, joinRateLimit } from '../../plugins/rate-limit';
+import {
+  analyzeRateLimit,
+  availabilityRateLimit,
+  joinRateLimit,
+} from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
 import { type SessionEvent, sessionEvents } from './events';
@@ -17,6 +21,7 @@ export function createSessionModule(service: SessionService) {
     .use(authPlugin)
     .use(joinRateLimit)
     .use(availabilityRateLimit)
+    .use(analyzeRateLimit)
     .onError(({ code, error, status }) => {
       if (code === 'VALIDATION' || code === 'NOT_FOUND' || code === 'PARSE')
         return;
@@ -27,6 +32,7 @@ export function createSessionModule(service: SessionService) {
       body: SessionModel.analyzeBody,
       response: {
         200: SessionModel.draftSessionCreatedResponse,
+        429: SessionModel.tooManyAnalyzeAttempts,
         500: t.Union([
           SessionModel.draftCreationFailed,
           SessionModel.internalError,
