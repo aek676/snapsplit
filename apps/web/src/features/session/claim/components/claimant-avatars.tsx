@@ -31,8 +31,8 @@ export function ClaimantAvatars({
               className={cn(
                 'label-nav border',
                 isMe
-                  ? 'bg-gold/15 text-gold-deep'
-                  : 'bg-primary-tint text-primary',
+                  ? 'bg-gold/10 text-gold-deep'
+                  : 'bg-primary-tint text-primary-pressed',
               )}
             >
               {initials(participant?.name ?? null)}
