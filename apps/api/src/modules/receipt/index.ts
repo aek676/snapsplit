@@ -2,7 +2,7 @@ import { Elysia, status, t } from 'elysia';
 import { receiptStorage } from '../../storage';
 import type { ObjectStorage } from '../../storage/object-storage';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '../../storage/object-storage';
-import { RECEIPT_BASE_PATH } from './service';
+import { RECEIPT_BASE_PATH, RECEIPT_FILE_ID_PATTERN } from './service';
 
 const receiptImageContent = Object.fromEntries(
   SUPPORTED_IMAGE_MIME_TYPES.map((type) => [
@@ -22,11 +22,18 @@ export function createReceiptModule(storage: ObjectStorage) {
       if (!file) return status(404, 'Not found');
 
       return new Response(new Uint8Array(file.bytes), {
-        headers: { 'content-type': file.mediaType },
+        headers: {
+          'content-type': file.mediaType,
+          // A fileId is a UUID minted once per upload, so the bytes behind a
+          // URL never change and clients may cache them forever.
+          'cache-control': 'private, max-age=31536000, immutable',
+        },
       });
     },
     {
-      params: t.Object({ fileId: t.String() }),
+      params: t.Object({
+        fileId: t.String({ pattern: RECEIPT_FILE_ID_PATTERN }),
+      }),
       detail: {
         summary: 'Serve a stored receipt image',
         tags: ['Receipts'],
