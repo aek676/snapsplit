@@ -3,7 +3,7 @@ import {
   SESSION_CODE_ALPHABET,
   SESSION_CODE_LENGTH,
 } from '@repo/shared-types';
-import { claimedUnits } from '@repo/split-logic';
+import { claimedUnits, remainingUnits } from '@repo/split-logic';
 import { status } from 'elysia';
 import { type HydratedDocument, Types } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
@@ -78,7 +78,7 @@ export function lineSumCents(session: HydratedDocument<Session>): number {
 }
 
 export function hasUnassignedUnits(session: HydratedDocument<Session>) {
-  return session.lineItems.some((item) => claimedUnits(item) < item.quantity);
+  return session.lineItems.some((item) => remainingUnits(item) > 0);
 }
 
 export function toSessionView(
@@ -325,11 +325,14 @@ export class SessionService {
   }
 
   async sessionAvailability(rawCode: string) {
-    const exists = await Session.exists({
-      code: rawCode.toUpperCase(),
-      status: 'open',
-    });
-    return { available: Boolean(exists) };
+    const session = await Session.findOne(
+      { code: rawCode.toUpperCase() },
+      'status',
+    );
+    return {
+      available: session?.status === 'open',
+      closed: session?.status === 'closed',
+    };
   }
 
   async joinSession(rawCode: string, name: string, callerToken?: string) {

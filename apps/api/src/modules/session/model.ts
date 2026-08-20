@@ -90,7 +90,10 @@ export const SessionModel = {
       ]),
     }),
   ]),
-  sessionAvailabilityResponse: t.Object({ available: t.Boolean() }),
+  sessionAvailabilityResponse: t.Object({
+    available: t.Boolean(),
+    closed: t.Boolean(),
+  }),
   claimBody: t.Object({ units: t.Integer({ minimum: 0 }) }),
   sessionEvent: t.Object({
     type: t.UnionEnum([...SESSION_EVENT_TYPES]),

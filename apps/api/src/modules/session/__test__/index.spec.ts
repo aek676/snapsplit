@@ -860,8 +860,8 @@ describe('GET /sessions/join/:code', () => {
   });
 
   it('reports an open session as available, upcasing the code', async () => {
-    const exists = spyOn(Session, 'exists').mockResolvedValue({
-      _id: 'x',
+    const findOne = spyOn(Session, 'findOne').mockResolvedValue({
+      status: 'open',
     } as never);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
@@ -870,12 +870,12 @@ describe('GET /sessions/join/:code', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ available: true });
-    expect(exists).toHaveBeenCalledWith({ code: 'ABCDEFGH', status: 'open' });
+    expect(await res.json()).toEqual({ available: true, closed: false });
+    expect(findOne).toHaveBeenCalledWith({ code: 'ABCDEFGH' }, 'status');
   });
 
-  it('reports an unmatched code as unavailable', async () => {
-    spyOn(Session, 'exists').mockResolvedValue(null as never);
+  it('reports a closed session as unavailable but closed', async () => {
+    spyOn(Session, 'findOne').mockResolvedValue({ status: 'closed' } as never);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
@@ -883,7 +883,19 @@ describe('GET /sessions/join/:code', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ available: false });
+    expect(await res.json()).toEqual({ available: false, closed: true });
+  });
+
+  it('reports an unmatched code as unavailable', async () => {
+    spyOn(Session, 'findOne').mockResolvedValue(null as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join/ABCDEFGH', { token: null }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: false, closed: false });
   });
 
   it.each([

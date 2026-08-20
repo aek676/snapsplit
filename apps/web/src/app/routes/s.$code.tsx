@@ -41,14 +41,19 @@ function GuestJoinPage() {
   });
 
   if (!isSessionCode(code) || availabilityQuery.data?.available === false) {
+    const closed = availabilityQuery.data?.closed === true;
     return (
       <JoinScreen>
         <div className="w-full overflow-hidden rounded-xl bg-surface shadow-(--shadow-soft)">
           <HeroIllustration />
         </div>
         <JoinHeading
-          title="This link looks broken"
-          subtitle="Ask whoever paid to share the link again."
+          title={closed ? 'This split is closed' : 'This link looks broken'}
+          subtitle={
+            closed
+              ? 'Only the people who joined before it closed can see the summary.'
+              : 'Ask whoever paid to share the link again.'
+          }
         />
       </JoinScreen>
     );
