@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import { useSetClaim } from '@/features/session/claim/api/set-claim';
 import { ClaimStepper } from '@/features/session/claim/components/claim-stepper';
 import { ClaimantAvatars } from '@/features/session/claim/components/claimant-avatars';
@@ -6,32 +8,36 @@ import { myUnits, remainingUnits } from '@/features/session/utils/claim-totals';
 import type { LineItem, Session } from '@/types/session';
 
 type ClaimLineItemRowProps = {
-  session: Session;
+  sessionId: string;
+  currency: string;
+  participants: Session['participants'];
   lineItem: LineItem;
   participantId: string | null;
   disabled?: boolean;
 };
 
-export function ClaimLineItemRow({
-  session,
+function ClaimLineItemRowImpl({
+  sessionId,
+  currency,
+  participants,
   lineItem,
   participantId,
   disabled,
 }: ClaimLineItemRowProps) {
-  const setClaim = useSetClaim({ sessionId: session.id });
+  const setClaim = useSetClaim({ sessionId });
   const units = myUnits(lineItem, participantId);
   const remaining = remainingUnits(lineItem);
 
   return (
     <LineItemRowShell
       lineItem={lineItem}
-      currency={session.currency}
+      currency={currency}
       muted={remaining === 0}
       footer={
         lineItem.claims.length > 0 && (
           <ClaimantAvatars
             claims={lineItem.claims}
-            participants={session.participants}
+            participants={participants}
             participantId={participantId}
           />
         )
@@ -44,7 +50,7 @@ export function ClaimLineItemRow({
         disabled={disabled || !participantId}
         onChange={(next) =>
           setClaim.mutate({
-            sessionId: session.id,
+            sessionId,
             lineItemId: lineItem.id,
             units: next,
           })
@@ -53,3 +59,5 @@ export function ClaimLineItemRow({
     </LineItemRowShell>
   );
 }
+
+export const ClaimLineItemRow = memo(ClaimLineItemRowImpl);

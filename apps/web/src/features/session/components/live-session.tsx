@@ -10,6 +10,7 @@ import { ShareSessionButton } from '@/features/session/components/share-session-
 import {
   collectedCents,
   myShareCents,
+  unclaimedUnits,
 } from '@/features/session/utils/claim-totals';
 import type { Session } from '@/types/session';
 import { getToken } from '@/utils/device-token';
@@ -47,7 +48,9 @@ export function LiveSession({ session }: { session: Session }) {
             {session.lineItems.map((lineItem) => (
               <ClaimLineItemRow
                 key={lineItem.id}
-                session={session}
+                sessionId={session.id}
+                currency={session.currency}
+                participants={session.participants}
                 lineItem={lineItem}
                 participantId={participantId}
                 disabled={!isOpen}
@@ -66,7 +69,12 @@ export function LiveSession({ session }: { session: Session }) {
               className="hero-title tabular-nums text-primary"
             />
           </div>
-          {isOwner && isOpen && <CloseSessionButton session={session} />}
+          {isOwner && isOpen && (
+            <CloseSessionButton
+              sessionId={session.id}
+              unclaimed={unclaimedUnits(session)}
+            />
+          )}
         </div>
       </div>
     </div>

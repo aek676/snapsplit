@@ -1,7 +1,11 @@
-import { claimedUnits, remainingUnits } from '@repo/split-logic';
+import {
+  claimedUnits,
+  remainingUnits,
+  unclaimedUnits,
+} from '@repo/split-logic';
 import type { LineItem, Participant, Session } from '@/types/session';
 
-export { claimedUnits, remainingUnits };
+export { claimedUnits, remainingUnits, unclaimedUnits };
 
 export function myUnits(
   lineItem: LineItem,

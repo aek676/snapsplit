@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 
 import {
   AlertDialog,
@@ -14,17 +14,18 @@ import {
 } from 'shadcn-ui/alert-dialog';
 import { Button } from 'shadcn-ui/button';
 import { useCloseSession } from '@/features/session/api/close-session';
-import { remainingUnits } from '@/features/session/utils/claim-totals';
-import type { Session } from '@/types/session';
 
-export function CloseSessionButton({ session }: { session: Session }) {
+type CloseSessionButtonProps = {
+  sessionId: string;
+  unclaimed: number;
+};
+
+function CloseSessionButtonImpl({
+  sessionId,
+  unclaimed,
+}: CloseSessionButtonProps) {
   const [open, setOpen] = useState(false);
-  const closeSession = useCloseSession({ sessionId: session.id });
-
-  const unclaimed = session.lineItems.reduce(
-    (sum, lineItem) => sum + remainingUnits(lineItem),
-    0,
-  );
+  const closeSession = useCloseSession({ sessionId });
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -56,7 +57,7 @@ export function CloseSessionButton({ session }: { session: Session }) {
             disabled={unclaimed > 0 || closeSession.isPending}
             onClick={() =>
               closeSession.mutate(
-                { sessionId: session.id },
+                { sessionId },
                 { onSuccess: () => setOpen(false) },
               )
             }
@@ -68,3 +69,5 @@ export function CloseSessionButton({ session }: { session: Session }) {
     </AlertDialog>
   );
 }
+
+export const CloseSessionButton = memo(CloseSessionButtonImpl);
