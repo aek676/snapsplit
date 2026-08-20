@@ -24,8 +24,6 @@ export function createReceiptModule(storage: ObjectStorage) {
       return new Response(new Uint8Array(file.bytes), {
         headers: {
           'content-type': file.mediaType,
-          // A fileId is a UUID minted once per upload, so the bytes behind a
-          // URL never change and clients may cache them forever.
           'cache-control': 'private, max-age=31536000, immutable',
         },
       });

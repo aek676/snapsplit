@@ -21,7 +21,6 @@ import { SessionModel } from './model';
 
 const CODE_ATTEMPTS = 5;
 const CLAIM_ATTEMPTS = 3;
-// Bounds the session document's growth and the SSE fan-out behind one code.
 const MAX_PARTICIPANTS = 30;
 
 export function generateSessionCode() {
@@ -313,10 +312,6 @@ export class SessionService {
           { $set: { 'participants.$.name': name }, $inc: { __v: 1 } },
           { returnDocument: 'after' },
         ).select('+participants.deviceTokenHash')) ??
-        // Only reached when the session is not open, since the update above
-        // matches any open session the bearer belongs to. Membership is proven,
-        // so the anti-enumeration 404 below is not needed here — but a session
-        // that is no longer open is immutable, hence no rename.
         (await Session.findOne({
           code,
           'participants.deviceTokenHash': callerTokenHash,
@@ -354,14 +349,9 @@ export class SessionService {
     );
 
     if (!session) {
-      // A full session leaks nothing the public availability read does not
-      // already answer, so it may say so.
       const fullSession = await Session.exists({ code, status: 'open' });
       if (fullSession) return status(409, SessionModel.sessionFull.const);
 
-      // To anyone who is not already a participant, a session that exists but
-      // is closed answers the same as one that never existed: telling them
-      // apart would confirm which codes are real to anyone probing them.
       return status(404, SessionModel.sessionNotFound.const);
     }
 
