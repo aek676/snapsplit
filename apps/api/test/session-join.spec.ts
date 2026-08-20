@@ -253,14 +253,13 @@ describe('joining a full session', () => {
     const padding = Array.from(
       { length: total - current.length },
       (_, index) => ({
-        _id: new Types.ObjectId(),
         name: `Pad ${index}`,
         deviceTokenHash: hashToken(`pad-${index}`),
         isOwner: false,
       }),
     );
-    await Session.collection.updateOne(
-      { _id: new Types.ObjectId(sessionId) },
+    await Session.updateOne(
+      { _id: sessionId },
       { $push: { participants: { $each: padding } } },
     );
   }
