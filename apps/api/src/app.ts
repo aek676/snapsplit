@@ -1,14 +1,11 @@
 import { cors } from '@elysiajs/cors';
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
-import { healthcheckPlugin } from 'elysia-healthcheck';
-import mongoose from 'mongoose';
-import { parseCorsOrigin } from './config/cors';
 import { receiptModule } from './modules/receipt';
 import { sessionModule } from './modules/session';
 
 export const app = new Elysia()
-  .use(cors({ origin: parseCorsOrigin(Bun.env.CORS_ORIGIN) }))
+  .use(cors())
   .use(
     openapi({
       documentation: {
@@ -23,23 +20,10 @@ export const app = new Elysia()
           { name: 'Receipts', description: 'Stored receipt images' },
         ],
       },
-      exclude: { paths: ['/healthz', '/healthz/live', '/healthz/ready'] },
     }),
   )
   .use(sessionModule)
   .use(receiptModule)
-  .use(
-    healthcheckPlugin({
-      checks: {
-        readiness: [
-          () => ({
-            name: 'mongodb',
-            healthy: mongoose.connection.readyState === 1,
-          }),
-        ],
-      },
-    }),
-  )
   .get('/', () => ({ hello: 'snapsplit' }));
 
 export type App = typeof app;

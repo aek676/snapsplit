@@ -2,21 +2,14 @@ import { unwrapSchema } from '@elysiajs/openapi/openapi';
 import { Elysia, sse, t } from 'elysia';
 import { extractReceipt } from '../../ai/receipt';
 import { authPlugin } from '../../plugins/auth';
-import {
-  analyzeRateLimit,
-  availabilityRateLimit,
-  joinRateLimit,
-} from '../../plugins/rate-limit';
+import { availabilityRateLimit, joinRateLimit } from '../../plugins/rate-limit';
 import { receiptStorage } from '../../storage';
 import { AuthModel } from '../auth/model';
-import { type SessionEvent, type SessionEvents, sessionEvents } from './events';
+import { type SessionEvent, sessionEvents } from './events';
 import { SessionModel } from './model';
 import { SessionService, toSessionView } from './service';
 
-export function createSessionModule(
-  service: SessionService,
-  events: SessionEvents = sessionEvents,
-) {
+export function createSessionModule(service: SessionService) {
   return new Elysia({
     prefix: '/sessions',
     name: 'sessions',
@@ -24,10 +17,8 @@ export function createSessionModule(
     .use(authPlugin)
     .use(joinRateLimit)
     .use(availabilityRateLimit)
-    .use(analyzeRateLimit)
     .onError(({ code, error, status }) => {
-      if (code === 'VALIDATION' || code === 'NOT_FOUND' || code === 'PARSE')
-        return;
+      if (code === 'VALIDATION') return;
       console.error('Unexpected error in sessions module:', error);
       return status(500, SessionModel.internalError.const);
     })
@@ -35,7 +26,6 @@ export function createSessionModule(
       body: SessionModel.analyzeBody,
       response: {
         200: SessionModel.draftSessionCreatedResponse,
-        429: SessionModel.tooManyAnalyzeAttempts,
         500: t.Union([
           SessionModel.draftCreationFailed,
           SessionModel.internalError,
@@ -233,7 +223,7 @@ export function createSessionModule(
           } satisfies SessionEvent,
         });
         try {
-          for await (const event of events.subscribe(
+          for await (const event of sessionEvents.subscribe(
             String(session._id),
             request.signal,
           )) {
@@ -297,7 +287,6 @@ export function createSessionModule(
         response: {
           200: SessionModel.joinResponse,
           404: SessionModel.sessionNotFound,
-          409: SessionModel.sessionFull,
           429: SessionModel.tooManyJoinAttempts,
           500: SessionModel.internalError,
         },

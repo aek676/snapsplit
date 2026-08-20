@@ -1009,7 +1009,6 @@ function fakeEvents() {
     subscribe: mock(() => {
       throw new Error('not used in these tests');
     }),
-    close: mock(() => {}),
   };
 }
 

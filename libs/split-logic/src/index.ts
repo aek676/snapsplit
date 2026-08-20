@@ -1,1 +1,1 @@
-export * from './lib/claims';
+export * from './lib/split-logic';

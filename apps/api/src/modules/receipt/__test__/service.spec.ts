@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  newReceiptFileId,
-  RECEIPT_FILE_ID_PATTERN,
-  receiptFileId,
-  receiptUrl,
-} from '../service';
+import { receiptFileId, receiptUrl } from '../service';
 
 describe('receiptUrl', () => {
   it('builds the public path served by the receipt module', () => {
@@ -28,16 +23,5 @@ describe('receiptFileId', () => {
   it('returns null for the empty default url', () => {
     expect(receiptFileId('')).toBeNull();
     expect(receiptFileId('/receipts/')).toBeNull();
-  });
-});
-
-describe('newReceiptFileId', () => {
-  it.each([
-    ['a known media type', 'image/png'],
-    ['an unknown media type', 'application/pdf'],
-  ])('mints an id matching the route pattern for %s', (_label, mediaType) => {
-    expect(newReceiptFileId(mediaType)).toMatch(
-      new RegExp(RECEIPT_FILE_ID_PATTERN),
-    );
   });
 });

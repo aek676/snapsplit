@@ -1,7 +1,12 @@
-import { claimedUnits, remainingUnits } from '@repo/split-logic';
 import type { LineItem, Session } from '@/types/session';
 
-export { claimedUnits, remainingUnits };
+export function claimedUnits(lineItem: LineItem): number {
+  return lineItem.claims.reduce((sum, claim) => sum + claim.units, 0);
+}
+
+export function remainingUnits(lineItem: LineItem): number {
+  return lineItem.quantity - claimedUnits(lineItem);
+}
 
 export function myUnits(
   lineItem: LineItem,

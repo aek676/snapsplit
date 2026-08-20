@@ -18,9 +18,6 @@ export interface SessionEvents {
     sessionId: string,
     signal: AbortSignal,
   ): AsyncIterable<SessionEvent>;
-  // Ends every open subscription. A shutdown can only drain in-flight requests
-  // once these streams finish: left alone they run until the client hangs up.
-  close(): void;
 }
 
 const HEARTBEAT_MS = 15_000;
@@ -31,21 +28,15 @@ const HEARTBEAT_MS = 15_000;
 export function createSessionEvents(): SessionEvents {
   const emitter = new EventEmitter();
   emitter.setMaxListeners(0);
-  const closing = new AbortController();
 
   return {
     publish(sessionId, event) {
       emitter.emit(sessionId, event);
     },
 
-    close() {
-      closing.abort();
-    },
-
     async *subscribe(sessionId, signal) {
       let queue: SessionEvent[] = [];
       let wake = () => {};
-      const stopped = () => signal.aborted || closing.signal.aborted;
       const onEvent = (event: SessionEvent) => {
         queue.push(event);
         wake();
@@ -53,10 +44,9 @@ export function createSessionEvents(): SessionEvents {
       const onAbort = () => wake();
       emitter.on(sessionId, onEvent);
       signal.addEventListener('abort', onAbort);
-      closing.signal.addEventListener('abort', onAbort);
 
       try {
-        while (!stopped()) {
+        while (!signal.aborted) {
           if (queue.length === 0) {
             await new Promise<void>((resolve) => {
               wake = resolve;
@@ -65,7 +55,7 @@ export function createSessionEvents(): SessionEvents {
             });
             wake = () => {};
           }
-          if (stopped()) return;
+          if (signal.aborted) return;
           if (queue.length > 0) {
             const batch = queue;
             queue = [];
@@ -77,7 +67,6 @@ export function createSessionEvents(): SessionEvents {
       } finally {
         emitter.off(sessionId, onEvent);
         signal.removeEventListener('abort', onAbort);
-        closing.signal.removeEventListener('abort', onAbort);
       }
     },
   };

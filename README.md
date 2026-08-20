@@ -32,9 +32,3 @@ variables it expects.
 needs a reachable Docker socket — without one it fails while starting the container rather
 than on an assertion. The first run pulls the image, which is why startup allows 180s.
 `bun nx run-many -t test` does not include it; run the target explicitly.
-
-## Deployment
-
-See [docs/deployment.md](docs/deployment.md) — notably the GCS Object
-Lifecycle rule that must accompany the 90-day session TTL so receipt images
-do not outlive their sessions.

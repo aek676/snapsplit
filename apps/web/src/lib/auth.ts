@@ -77,7 +77,7 @@ export function expireSession(url: string): boolean {
   if (!getToken(sessionId)) return true;
 
   clearToken(sessionId);
-  window.location.assign(import.meta.env.BASE_URL);
+  window.location.assign('/');
 
   return true;
 }

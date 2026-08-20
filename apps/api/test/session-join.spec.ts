@@ -247,58 +247,6 @@ describe('joining a session that cannot be joined', () => {
   });
 });
 
-describe('joining a full session', () => {
-  async function padToParticipants(sessionId: string, total: number) {
-    const current = await storedParticipants(sessionId);
-    const padding = Array.from(
-      { length: total - current.length },
-      (_, index) => ({
-        name: `Pad ${index}`,
-        deviceTokenHash: hashToken(`pad-${index}`),
-        isOwner: false,
-      }),
-    );
-    await Session.updateOne(
-      { _id: sessionId },
-      { $push: { participants: { $each: padding } } },
-    );
-  }
-
-  it('admits the 30th participant and refuses the 31st', async () => {
-    const session = await createOpenSession();
-    await padToParticipants(session.id, 29);
-
-    const admitted = await join(session.code, 'Marta');
-
-    expect(admitted.status).toBe(200);
-    expect(await storedParticipants(session.id)).toHaveLength(30);
-
-    const refused = await join(session.code, 'Nadia');
-
-    expect(refused.status).toBe(409);
-    expect(await refused.text()).toBe('Session is full');
-    expect(await storedParticipants(session.id)).toHaveLength(30);
-  });
-
-  it('still lets a member of a full session rename themselves', async () => {
-    const session = await createOpenSession();
-    const admitted = await join(session.code, 'Marta');
-    const { auth } = (await admitted.json()) as JoinResponse;
-    await padToParticipants(session.id, 30);
-
-    const renamed = await join(session.code, 'Marta Renamed', auth.token);
-
-    expect(renamed.status).toBe(200);
-    const participants = await storedParticipants(session.id);
-    expect(participants).toHaveLength(30);
-    expect(
-      participants.find(
-        (participant) => String(participant._id) === auth.participantId,
-      )?.name,
-    ).toBe('Marta Renamed');
-  });
-});
-
 describe('checking a share code before joining', () => {
   it('reports an open session as available', async () => {
     const session = await createOpenSession();

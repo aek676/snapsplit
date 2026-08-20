@@ -1,4 +1,4 @@
-import { type InferSchemaType, Schema } from 'mongoose';
+import { type InferSchemaType, model, Schema } from 'mongoose';
 
 export const participantSchema = new Schema(
   {
@@ -10,3 +10,4 @@ export const participantSchema = new Schema(
 );
 
 export type Participant = InferSchemaType<typeof participantSchema>;
+export const Participant = model('Participant', participantSchema);
