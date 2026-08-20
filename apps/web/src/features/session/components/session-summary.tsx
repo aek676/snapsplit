@@ -63,7 +63,7 @@ export function SessionSummary({ session }: { session: Session }) {
         <div className="mx-auto flex min-h-20 w-full max-w-160 items-center px-5 py-4">
           <ShareSessionButton size="xl" className="w-full">
             <Share2 size={20} />
-            Share summary
+            Share with the group
           </ShareSessionButton>
         </div>
       </div>
@@ -123,7 +123,6 @@ function YourShareCard({
           {isOwner ? (
             <>
               <p className="screen-title">
-                Your share{' '}
                 <Money
                   cents={mineCents}
                   currency={session.currency}
@@ -132,7 +131,7 @@ function YourShareCard({
               </p>
               <p className="unit-meta text-content-secondary">
                 {collectCents === 0 ? (
-                  'Nobody claimed any items.'
+                  'You claimed everything yourself.'
                 ) : (
                   <>
                     You collect{' '}
@@ -191,7 +190,7 @@ function BreakdownRow({ breakdown, currency, isMe }: BreakdownRowProps) {
 
   return (
     <Collapsible
-      render={<li className={cn('border-b border-border last:border-b-0')} />}
+      render={<li className="border-b border-border last:border-b-0" />}
     >
       <CollapsibleTrigger
         disabled={!expandable}
