@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { claimedUnits, remainingUnits } from './claims';
+import { claimedUnits, remainingUnits, unclaimedUnits } from './claims';
 
 const objectIdLike = (id: string) => ({ toString: () => id });
 
@@ -53,5 +53,33 @@ describe('remainingUnits', () => {
     };
 
     expect(remainingUnits(lineItem)).toBe(3);
+  });
+});
+
+describe('unclaimedUnits', () => {
+  it('sums the remaining units across every line item', () => {
+    const session = {
+      lineItems: [
+        { quantity: 5, claims: [{ participantId: 'p1', units: 2 }] },
+        { quantity: 3, claims: [] },
+      ],
+    };
+
+    expect(unclaimedUnits(session)).toBe(6);
+  });
+
+  it('sums to zero once everything is claimed', () => {
+    const session = {
+      lineItems: [
+        { quantity: 2, claims: [{ participantId: 'p1', units: 2 }] },
+        { quantity: 1, claims: [{ participantId: 'p2', units: 1 }] },
+      ],
+    };
+
+    expect(unclaimedUnits(session)).toBe(0);
+  });
+
+  it('sums to zero without line items', () => {
+    expect(unclaimedUnits({ lineItems: [] })).toBe(0);
   });
 });

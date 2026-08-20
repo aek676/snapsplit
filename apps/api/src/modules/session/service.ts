@@ -3,7 +3,7 @@ import {
   SESSION_CODE_ALPHABET,
   SESSION_CODE_LENGTH,
 } from '@repo/shared-types';
-import { claimedUnits, remainingUnits } from '@repo/split-logic';
+import { claimedUnits, unclaimedUnits } from '@repo/split-logic';
 import { status } from 'elysia';
 import { type HydratedDocument, Types } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
@@ -75,10 +75,6 @@ export function buildDraftPayload(
 
 export function lineSumCents(session: HydratedDocument<Session>): number {
   return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
-}
-
-export function hasUnassignedUnits(session: HydratedDocument<Session>) {
-  return session.lineItems.some((item) => remainingUnits(item) > 0);
 }
 
 export function toSessionView(
@@ -304,7 +300,7 @@ export class SessionService {
       if (doc.status !== 'open')
         return status(409, SessionModel.sessionNotOpen.const);
 
-      if (hasUnassignedUnits(doc))
+      if (unclaimedUnits(doc) > 0)
         return status(409, SessionModel.sessionHasUnassignedUnits.const);
 
       const closed = await Session.findOneAndUpdate(
