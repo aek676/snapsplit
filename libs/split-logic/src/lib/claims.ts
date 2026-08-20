@@ -1,5 +1,3 @@
-// participantId is an ObjectId on the API and a plain string on the web;
-// String() gives both the same identity for comparison.
 export type ClaimLike = { participantId: unknown; units: number };
 
 export type ClaimedLineItem = { quantity: number; claims: ClaimLike[] };

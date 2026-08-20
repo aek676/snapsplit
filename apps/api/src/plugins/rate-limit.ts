@@ -15,10 +15,6 @@ const MAX_JOIN_ATTEMPTS = 30;
 const MAX_AVAILABILITY_READS = 60;
 
 const ANALYZE_WINDOW_MS = 3_600_000;
-// Analysis is the expensive endpoint — a 10MB upload, up to three Gemini
-// calls and a GCS write per attempt — and needs no session to exist, so its
-// budget is the spend cap for anonymous traffic. Ten an hour covers honest
-// retries of a blurry photo while keeping a scripted caller's cost bounded.
 const MAX_ANALYZE_ATTEMPTS = 10;
 
 const UNKNOWN_CLIENT = 'unknown';

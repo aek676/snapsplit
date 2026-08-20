@@ -8,7 +8,6 @@ export const RECEIPT_BASE_PATH = '/receipts';
 
 const RECEIPT_EXTS = [...new Set([...Object.values(EXT_BY_MEDIA_TYPE), 'bin'])];
 
-// randomUUID() emits lowercase hex, so ids are lowercase by construction.
 export const RECEIPT_FILE_ID_PATTERN = `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(${RECEIPT_EXTS.join('|')})$`;
 
 export function newReceiptFileId(mediaType: string) {
