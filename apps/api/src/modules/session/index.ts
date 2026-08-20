@@ -297,6 +297,7 @@ export function createSessionModule(
         response: {
           200: SessionModel.joinResponse,
           404: SessionModel.sessionNotFound,
+          409: SessionModel.sessionFull,
           429: SessionModel.tooManyJoinAttempts,
           500: SessionModel.internalError,
         },
