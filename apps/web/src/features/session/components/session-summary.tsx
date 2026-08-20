@@ -170,7 +170,7 @@ function YourShareCard({
           )}
         </div>
         <Avatar size="lg" className="shrink-0">
-          <AvatarFallback className="item-name border bg-gold/10 text-gold-deep">
+          <AvatarFallback className="border-2 item-name">
             {initials(me?.name ?? null)}
           </AvatarFallback>
         </Avatar>
@@ -195,7 +195,6 @@ function BreakdownRow({ breakdown, currency, isMe }: BreakdownRowProps) {
         <li
           className={cn(
             'border-b border-border last:border-b-0',
-            isMe && 'bg-primary-tint/40',
           )}
         />
       }
@@ -207,15 +206,8 @@ function BreakdownRow({ breakdown, currency, isMe }: BreakdownRowProps) {
             variant="ghost"
             className="h-auto w-full gap-3 rounded-none px-4 py-4 aria-disabled:hover:bg-transparent"
           >
-            <Avatar className="shrink-0">
-              <AvatarFallback
-                className={cn(
-                  'label-nav border',
-                  isMe
-                    ? 'bg-gold/10 text-gold-deep'
-                    : 'bg-primary-tint text-primary-pressed',
-                )}
-              >
+            <Avatar className={cn('shrink-0', !isMe && 'grayscale')}>
+              <AvatarFallback className="border-2">
                 {initials(participant.name)}
               </AvatarFallback>
             </Avatar>
@@ -229,7 +221,7 @@ function BreakdownRow({ breakdown, currency, isMe }: BreakdownRowProps) {
             <Money
               cents={totalCents}
               currency={currency}
-              className="price-total text-gold-deep"
+              className="price-total"
             />
             {expandable && (
               <ChevronDownIcon className="ml-auto text-content-secondary transition-transform group-data-panel-open/button:rotate-180" />
@@ -238,8 +230,8 @@ function BreakdownRow({ breakdown, currency, isMe }: BreakdownRowProps) {
         }
       />
       {expandable && (
-        <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
-          <ul className="flex flex-col gap-2 bg-surface-alt px-4 py-3">
+        <CollapsibleContent>
+          <ul className="flex flex-col gap-2 px-4 py-3">
             {lines.map((line) => (
               <li
                 key={line.lineItemId}
