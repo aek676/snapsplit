@@ -112,6 +112,8 @@ function YourShareCard({
   isOwner,
 }: YourShareCardProps) {
   const mineCents = myShareCents(session, participantId);
+  const collectCents = session.totalCents - mineCents;
+  const me = session.participants.find((p) => p.id === participantId);
 
   return (
     <Card className="rounded-2xl border-l-4 border-l-primary shadow-soft ring-0">
@@ -129,37 +131,47 @@ function YourShareCard({
                 />
               </p>
               <p className="unit-meta text-content-secondary">
-                You collect{' '}
-                <Money
-                  cents={session.totalCents - mineCents}
-                  currency={session.currency}
-                  className="text-gold-deep"
-                />{' '}
-                from the group.
+                {collectCents === 0 ? (
+                  'Nobody claimed any items.'
+                ) : (
+                  <>
+                    You collect{' '}
+                    <Money
+                      cents={collectCents}
+                      currency={session.currency}
+                      className="text-gold-deep"
+                    />{' '}
+                    from the group.
+                  </>
+                )}
+              </p>
+            </>
+          ) : mineCents === 0 ? (
+            <>
+              <p className="screen-title">Nothing to pay</p>
+              <p className="unit-meta text-content-secondary">
+                You didn't claim any items.
               </p>
             </>
           ) : (
-            <p className="screen-title">
-              You owe{' '}
-              <Money
-                cents={mineCents}
-                currency={session.currency}
-                className="text-primary tabular-nums"
-              />{' '}
-              to {owner?.name ?? 'the payer'}
-            </p>
+            <>
+              <p className="screen-title">
+                You owe{' '}
+                <Money
+                  cents={mineCents}
+                  currency={session.currency}
+                  className="text-primary tabular-nums"
+                />
+              </p>
+              <p className="unit-meta text-content-secondary">
+                to {owner?.name ?? 'the payer'}.
+              </p>
+            </>
           )}
         </div>
         <Avatar size="lg" className="shrink-0">
-          <AvatarFallback
-            className={cn(
-              'item-name border',
-              isOwner
-                ? 'bg-gold/10 text-gold-deep'
-                : 'bg-primary-tint text-primary-pressed',
-            )}
-          >
-            {initials(owner?.name ?? null)}
+          <AvatarFallback className="item-name border bg-gold/10 text-gold-deep">
+            {initials(me?.name ?? null)}
           </AvatarFallback>
         </Avatar>
       </CardContent>
