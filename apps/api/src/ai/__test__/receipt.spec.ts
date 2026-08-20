@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { MockLanguageModelV4 } from 'ai/test';
-import type { ExtractedReceipt } from './receipt';
+import type { ExtractedReceipt } from '../receipt';
 
 const consistent: ExtractedReceipt = {
   merchant: 'Bar Paco',
@@ -46,8 +46,10 @@ let model: MockLanguageModelV4;
 const google = mock(() => model);
 mock.module('@ai-sdk/google', () => ({ google }));
 
+Bun.env.RECEIPT_SUM_TOLERANCE_CENTS = '50';
+
 const { extractReceipt, isReceiptConsistent, receiptScore, receiptSchema } =
-  await import('./receipt');
+  await import('../receipt');
 
 const withOutputs = (...raws: unknown[]) => {
   model = new MockLanguageModelV4({
@@ -72,10 +74,16 @@ describe('isReceiptConsistent', () => {
     expect(isReceiptConsistent(receipt)).toBe(false);
   });
 
-  it('rejects when the line totals do not sum to the bill total', () => {
-    expect(isReceiptConsistent({ ...consistent, totalCents: 1000 })).toBe(
+  it('rejects when the line totals drift beyond the tolerance', () => {
+    expect(isReceiptConsistent({ ...consistent, totalCents: 1001 })).toBe(
       false,
     );
+    expect(isReceiptConsistent({ ...consistent, totalCents: 899 })).toBe(false);
+  });
+
+  it('accepts a total within the tolerance', () => {
+    expect(isReceiptConsistent({ ...consistent, totalCents: 1000 })).toBe(true);
+    expect(isReceiptConsistent({ ...consistent, totalCents: 900 })).toBe(true);
   });
 
   it('accepts a zero-amount line as long as the totals still add up', () => {
@@ -163,10 +171,20 @@ describe('extractReceipt', () => {
     expect(model.doGenerateCalls).toHaveLength(2);
   });
 
+  it('accepts a within-tolerance total on the first call', async () => {
+    const nearMiss: ExtractedReceipt = { ...consistent, totalCents: 990 };
+    withOutputs(nearMiss);
+
+    const result = await extract();
+
+    expect(result).toEqual(nearMiss);
+    expect(model.doGenerateCalls).toHaveLength(1);
+  });
+
   it('returns the highest-scoring extraction when none are consistent, not the last', async () => {
-    // Attempt 2 has matching lines and a total that is off by 1 cent, so it
+    // Attempt 2 has matching lines and a total that is off by 55 cents, so it
     // scores highest even though it is not the last attempt.
-    const best: ExtractedReceipt = { ...consistent, totalCents: 951 };
+    const best: ExtractedReceipt = { ...consistent, totalCents: 1005 };
     const last: ExtractedReceipt = {
       ...consistent,
       lineItems: [lineItem({ lineTotalCents: 999 }), consistent.lineItems[1]],

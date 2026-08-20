@@ -16,6 +16,9 @@
   "references": [
     {
       "path": "../../libs/shared-types"
+    },
+    {
+      "path": "../../libs/split-logic"
     }
   ]
 }

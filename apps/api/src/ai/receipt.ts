@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 const MODEL = Bun.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 const MAX_ATTEMPTS = Number(Bun.env.RECEIPT_EXTRACTION_MAX_ATTEMPTS ?? 3);
-const SUM_TOLERANCE_CENTS = 0;
+const SUM_TOLERANCE_CENTS = Number(Bun.env.RECEIPT_SUM_TOLERANCE_CENTS ?? 50);
 
 const wordSegmenter = new Intl.Segmenter('es', { granularity: 'word' });
 

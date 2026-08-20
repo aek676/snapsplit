@@ -9,6 +9,7 @@ import {
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
 import {
+  analyzeRateLimitContext,
   availabilityRateLimitContext,
   joinRateLimitContext,
 } from '../../../plugins/rate-limit';
@@ -72,7 +73,8 @@ const imageFile = (type = 'image/png') =>
   new File([PNG_BYTES], 'receipt.png', { type });
 
 describe('POST /sessions/analyze', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await analyzeRateLimitContext.reset();
     spyOn(console, 'error').mockImplementation(() => {});
     spyOn(Session.prototype, 'save').mockImplementation(async function (
       this: unknown,
@@ -851,6 +853,60 @@ describe('POST /sessions/join/:code', () => {
     expect(res.status).toBe(500);
     expect(await res.text()).toBe('Unexpected server error');
     expect(console.error).toHaveBeenCalled();
+  });
+
+  it('returns 409 when the session is open but full', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockImplementation((() =>
+      Promise.resolve(null)) as never);
+    spyOn(Session, 'exists').mockImplementation((() =>
+      Promise.resolve({ _id: 'x' })) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${CODE}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is full');
+  });
+
+  it('returns 404 when no open session carries the code', async () => {
+    spyOn(Session, 'findOneAndUpdate').mockImplementation((() =>
+      Promise.resolve(null)) as never);
+    spyOn(Session, 'exists').mockImplementation((() =>
+      Promise.resolve(null)) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/join/${CODE}`, {
+        method: 'POST',
+        body: joinBody,
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Session not found');
+  });
+
+  it('does not map a malformed JSON body to 500', async () => {
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      new Request(`http://localhost/sessions/join/${CODE}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: 'not-json',
+      }),
+    );
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+    expect(console.error).not.toHaveBeenCalled();
   });
 });
 

@@ -7,6 +7,7 @@ import {
 import mongoose from 'mongoose';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import {
+  analyzeRateLimitContext,
   availabilityRateLimitContext,
   joinRateLimitContext,
 } from '../src/plugins/rate-limit';
@@ -64,6 +65,7 @@ beforeEach(async () => {
     resetBucket(),
     joinRateLimitContext.reset(),
     availabilityRateLimitContext.reset(),
+    analyzeRateLimitContext.reset(),
   ]);
 });
 

@@ -39,7 +39,8 @@ sessionSchema.index(
   { unique: true, partialFilterExpression: { code: { $type: 'string' } } },
 );
 sessionSchema.index({ 'participants.deviceTokenHash': 1 });
-sessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 }); // 90 days
+// NOTE: 90 days — keep in sync with the GCS lifecycle rule (docs/deployment.md).
+sessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
 
 export type Session = InferSchemaType<typeof sessionSchema>;
 export const Session = model('Session', sessionSchema);
