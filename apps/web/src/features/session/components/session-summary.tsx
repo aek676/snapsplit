@@ -191,13 +191,7 @@ function BreakdownRow({ breakdown, currency, isMe }: BreakdownRowProps) {
 
   return (
     <Collapsible
-      render={
-        <li
-          className={cn(
-            'border-b border-border last:border-b-0',
-          )}
-        />
-      }
+      render={<li className={cn('border-b border-border last:border-b-0')} />}
     >
       <CollapsibleTrigger
         disabled={!expandable}

@@ -81,7 +81,6 @@ export function hasUnassignedUnits(session: HydratedDocument<Session>) {
   return session.lineItems.some((item) => claimedUnits(item) < item.quantity);
 }
 
-
 export function toSessionView(
   session: HydratedDocument<Session>,
 ): SessionModel['draftSessionResponse'] {
