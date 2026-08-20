@@ -3,7 +3,6 @@ import {
   SESSION_CODE_ALPHABET,
   SESSION_CODE_LENGTH,
 } from '@repo/shared-types';
-import { claimedUnits } from '@repo/split-logic';
 import { status } from 'elysia';
 import { type HydratedDocument, Types } from 'mongoose';
 import type { ExtractedReceipt, ExtractReceipt } from '../../ai/receipt';
@@ -21,7 +20,6 @@ import { SessionModel } from './model';
 
 const CODE_ATTEMPTS = 5;
 const CLAIM_ATTEMPTS = 3;
-const MAX_PARTICIPANTS = 30;
 
 export function generateSessionCode() {
   const bytes = new Uint8Array(SESSION_CODE_LENGTH);
@@ -74,6 +72,19 @@ export function buildDraftPayload(
 
 export function lineSumCents(session: HydratedDocument<Session>): number {
   return session.lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
+}
+
+export function claimedUnits(
+  lineItem: LineItem,
+  excludeParticipantId?: string,
+): number {
+  return lineItem.claims.reduce(
+    (sum, claim) =>
+      String(claim.participantId) === excludeParticipantId
+        ? sum
+        : sum + claim.units,
+    0,
+  );
 }
 
 export function toSessionView(
@@ -312,6 +323,10 @@ export class SessionService {
           { $set: { 'participants.$.name': name }, $inc: { __v: 1 } },
           { returnDocument: 'after' },
         ).select('+participants.deviceTokenHash')) ??
+        // Only reached when the session is not open, since the update above
+        // matches any open session the bearer belongs to. Membership is proven,
+        // so the anti-enumeration 404 below is not needed here — but a session
+        // that is no longer open is immutable, hence no rename.
         (await Session.findOne({
           code,
           'participants.deviceTokenHash': callerTokenHash,
@@ -334,11 +349,7 @@ export class SessionService {
     const deviceTokenHash = hashToken(token);
 
     const session = await Session.findOneAndUpdate(
-      {
-        code,
-        status: 'open',
-        $expr: { $lt: [{ $size: '$participants' }, MAX_PARTICIPANTS] },
-      },
+      { code, status: 'open' },
       {
         $push: {
           participants: { name, deviceTokenHash, isOwner: false },
@@ -348,12 +359,10 @@ export class SessionService {
       { returnDocument: 'after' },
     );
 
-    if (!session) {
-      const fullSession = await Session.exists({ code, status: 'open' });
-      if (fullSession) return status(409, SessionModel.sessionFull.const);
-
-      return status(404, SessionModel.sessionNotFound.const);
-    }
+    // To anyone who is not already a participant, a session that exists but is
+    // closed answers the same as one that never existed: telling them apart
+    // would confirm which codes are real to anyone probing them.
+    if (!session) return status(404, SessionModel.sessionNotFound.const);
 
     this.events.publish(String(session._id), {
       type: 'participant-joined',

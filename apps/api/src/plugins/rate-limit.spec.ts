@@ -1,25 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { Elysia, status } from 'elysia';
-import { SessionModel } from '../../modules/session/model';
+import { SessionModel } from '../modules/session/model';
 import {
-  analyzeRateLimit,
-  analyzeRateLimitContext,
   availabilityRateLimit,
   availabilityRateLimitContext,
   createClientKey,
   joinRateLimit,
   joinRateLimitContext,
-} from '../rate-limit';
+} from './rate-limit';
 
 const MAX_JOIN_ATTEMPTS = 30;
 const MAX_AVAILABILITY_READS = 60;
-const MAX_ANALYZE_ATTEMPTS = 10;
 
 const app = new Elysia({ prefix: '/sessions' })
   .use(joinRateLimit)
   .use(availabilityRateLimit)
-  .use(analyzeRateLimit)
-  .post('/analyze', () => 'analyzed')
   .post('/join/:code', ({ params }) => {
     if (params.code === 'BOOMBOOM') throw new Error('boom');
     return params.code === 'OPENOPEN'
@@ -47,17 +42,6 @@ async function exhaustTheWindow(code?: string) {
 async function exhaustTheAvailabilityWindow() {
   for (let attempt = 0; attempt < MAX_AVAILABILITY_READS; attempt++)
     await checkAvailability();
-}
-
-function analyze() {
-  return app.handle(
-    new Request('http://localhost/sessions/analyze', { method: 'POST' }),
-  );
-}
-
-async function exhaustTheAnalyzeWindow() {
-  for (let attempt = 0; attempt < MAX_ANALYZE_ATTEMPTS; attempt++)
-    await analyze();
 }
 
 describe('client key', () => {
@@ -112,13 +96,11 @@ describe('join rate limit', () => {
   beforeEach(async () => {
     await joinRateLimitContext.reset();
     await availabilityRateLimitContext.reset();
-    await analyzeRateLimitContext.reset();
   });
 
   afterEach(async () => {
     await joinRateLimitContext.reset();
     await availabilityRateLimitContext.reset();
-    await analyzeRateLimitContext.reset();
   });
 
   it(`lets ${MAX_JOIN_ATTEMPTS} attempts through and throttles the next one`, async () => {
@@ -198,33 +180,6 @@ describe('join rate limit', () => {
     await exhaustTheWindow();
 
     expect((await checkAvailability()).status).toBe(200);
-  });
-
-  it(`lets ${MAX_ANALYZE_ATTEMPTS} analyze attempts through and throttles the next one`, async () => {
-    const allowed = [];
-    for (let attempt = 0; attempt < MAX_ANALYZE_ATTEMPTS; attempt++)
-      allowed.push((await analyze()).status);
-
-    expect(allowed).toEqual(Array(MAX_ANALYZE_ATTEMPTS).fill(200));
-
-    const res = await analyze();
-
-    expect(res.status).toBe(429);
-    expect(await res.text()).toBe(SessionModel.tooManyAnalyzeAttempts.const);
-  });
-
-  it('keeps the join and availability budgets untouched by analyze attempts', async () => {
-    await exhaustTheAnalyzeWindow();
-
-    expect((await join('OPENOPEN')).status).toBe(200);
-    expect((await checkAvailability()).status).toBe(200);
-  });
-
-  it('keeps the analyze budget untouched by join attempts', async () => {
-    await exhaustTheWindow();
-    await exhaustTheAvailabilityWindow();
-
-    expect((await analyze()).status).toBe(200);
   });
 
   it('frees the caller once the window is reset', async () => {

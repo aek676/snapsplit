@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import { Elysia } from 'elysia';
-import { hashToken } from '../../modules/auth/service';
-import { Session } from '../../schemas';
-import { authPlugin } from '../auth';
+import { hashToken } from '../modules/auth/service';
+import { Session } from '../schemas';
+import { authPlugin } from './auth';
 
 const OWNER_TOKEN = 'owner-token-abc';
 const GUEST_TOKEN = 'guest-token-xyz';

@@ -1,4 +1,4 @@
-import { type InferSchemaType, Schema } from 'mongoose';
+import { type InferSchemaType, model, Schema } from 'mongoose';
 import { claimSchema } from './claim';
 
 export const lineItemSchema = new Schema({
@@ -11,3 +11,4 @@ export const lineItemSchema = new Schema({
 });
 
 export type LineItem = InferSchemaType<typeof lineItemSchema>;
+export const LineItem = model('LineItem', lineItemSchema);
