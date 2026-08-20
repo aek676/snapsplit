@@ -15,6 +15,7 @@ import {
 } from '@/features/session/components/join-screen';
 import { JoinSessionForm } from '@/features/session/components/join-session';
 import { LiveSession } from '@/features/session/components/live-session';
+import { SessionSummary } from '@/features/session/components/session-summary';
 import { needsName } from '@/features/session/utils/needs-name';
 import { getToken, sessionIdForCode } from '@/utils/device-token';
 
@@ -84,6 +85,10 @@ function GuestJoinPage() {
         replace
       />
     );
+  }
+
+  if (session?.status === 'closed') {
+    return <SessionSummary session={session} />;
   }
 
   if (!session || needsName(session)) {

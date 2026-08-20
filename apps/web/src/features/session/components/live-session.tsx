@@ -1,12 +1,12 @@
 import { Share2 } from 'lucide-react';
-import { Button } from 'shadcn-ui/button';
 import { Card, CardContent } from 'shadcn-ui/card';
-import { toast } from 'shadcn-ui/toast';
 
 import { Money } from '@/components/ui/money';
 import { Wordmark } from '@/components/wordmark';
 import { useSessionEvents } from '@/features/session/api/session-events';
 import { ClaimLineItemRow } from '@/features/session/claim/components/claim-line-item-row';
+import { CloseSessionButton } from '@/features/session/components/close-session-button';
+import { ShareSessionButton } from '@/features/session/components/share-session-button';
 import {
   collectedCents,
   myShareCents,
@@ -17,6 +17,8 @@ import { getToken } from '@/utils/device-token';
 export function LiveSession({ session }: { session: Session }) {
   const participantId = getToken(session.id)?.participantId ?? null;
   const isOpen = session.status === 'open';
+  const isOwner =
+    session.participants.find((p) => p.id === participantId)?.isOwner ?? false;
   useSessionEvents(session.id, isOpen);
 
   return (
@@ -28,7 +30,15 @@ export function LiveSession({ session }: { session: Session }) {
             {session.merchant ?? 'Receipt'}
           </h1>
         </div>
-        {session.code && <ShareSessionButton />}
+        {session.code && (
+          <ShareSessionButton
+            variant="ghost"
+            size="icon"
+            aria-label="Share the session link"
+          >
+            <Share2 />
+          </ShareSessionButton>
+        )}
       </header>
       <main className="flex flex-col gap-4 px-5 pt-6">
         <CollectedCard session={session} />
@@ -47,49 +57,19 @@ export function LiveSession({ session }: { session: Session }) {
         </div>
       </main>
       <div className="fixed bottom-0 left-0 z-40 w-full bg-content-primary shadow-[0_-8px_24px_rgba(42,37,48,0.08)]">
-        <div className="mx-auto flex min-h-20 w-full max-w-160 items-center justify-between px-5 py-4">
-          <span className="eyebrow text-content-tertiary">Your share</span>
-          <Money
-            cents={myShareCents(session, participantId)}
-            currency={session.currency}
-            className="hero-title text-gold"
-          />
+        <div className="mx-auto flex min-h-20 w-full max-w-160 items-center justify-between gap-4 px-5 py-4">
+          <div className="flex flex-col">
+            <span className="eyebrow text-content-tertiary">Your share</span>
+            <Money
+              cents={myShareCents(session, participantId)}
+              currency={session.currency}
+              className="hero-title text-gold"
+            />
+          </div>
+          {isOwner && isOpen && <CloseSessionButton session={session} />}
         </div>
       </div>
     </div>
-  );
-}
-
-function ShareSessionButton() {
-  const share = async () => {
-    const url = window.location.href;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      toast.add({ type: 'success', title: 'Link copied' });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      toast.add({
-        type: 'error',
-        title: 'Error',
-        description: "Couldn't share the link",
-      });
-    }
-  };
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label="Share the session link"
-      onClick={share}
-    >
-      <Share2 />
-    </Button>
   );
 }
 
