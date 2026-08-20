@@ -27,7 +27,7 @@ export function ClaimStepper({
       >
         <MinusIcon />
       </Button>
-      <ButtonGroupText className="min-w-12 justify-center">
+      <ButtonGroupText className="min-w-12 justify-center bg-surface">
         {remaining} left
       </ButtonGroupText>
       <Button

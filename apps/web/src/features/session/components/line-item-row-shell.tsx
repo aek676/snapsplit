@@ -24,7 +24,7 @@ export function LineItemRowShell({
       className={cn(
         'relative border-b border-border px-4 pb-5',
         flag ? 'border-l-[3px] border-l-warning pt-8' : 'pt-5',
-        muted && 'bg-surface-muted',
+        muted && 'bg-background',
       )}
     >
       {flag && (
