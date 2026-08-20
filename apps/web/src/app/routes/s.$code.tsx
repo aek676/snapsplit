@@ -15,6 +15,7 @@ import {
 } from '@/features/session/components/join-screen';
 import { JoinSessionForm } from '@/features/session/components/join-session';
 import { LiveSession } from '@/features/session/components/live-session';
+import { SessionSummary } from '@/features/session/components/session-summary';
 import { needsName } from '@/features/session/utils/needs-name';
 import { getToken, sessionIdForCode } from '@/utils/device-token';
 
@@ -40,14 +41,19 @@ function GuestJoinPage() {
   });
 
   if (!isSessionCode(code) || availabilityQuery.data?.available === false) {
+    const closed = availabilityQuery.data?.closed === true;
     return (
       <JoinScreen>
         <div className="w-full overflow-hidden rounded-xl bg-surface shadow-(--shadow-soft)">
           <HeroIllustration />
         </div>
         <JoinHeading
-          title="This link looks broken"
-          subtitle="Ask whoever paid to share the link again."
+          title={closed ? 'This split is closed' : 'This link looks broken'}
+          subtitle={
+            closed
+              ? 'Only the people who joined before it closed can see the summary.'
+              : 'Ask whoever paid to share the link again.'
+          }
         />
       </JoinScreen>
     );
@@ -84,6 +90,10 @@ function GuestJoinPage() {
         replace
       />
     );
+  }
+
+  if (session?.status === 'closed') {
+    return <SessionSummary session={session} />;
   }
 
   if (!session || needsName(session)) {

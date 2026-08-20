@@ -734,6 +734,121 @@ describe('POST /sessions/:sessionId/confirm', () => {
   });
 });
 
+function openClaimedSession() {
+  const session = sessionWithGuest();
+  session.status = 'open';
+  session.lineItems[0].claims.push({
+    participantId: session.participants[0]._id,
+    units: 3,
+  });
+  return session;
+}
+
+describe('POST /sessions/:sessionId/close', () => {
+  beforeEach(() => {
+    spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('returns 200 with the closed session', async () => {
+    const session = openClaimedSession();
+    mockLookup(session);
+    mockPublish(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/close`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe('closed');
+    expect(typeof body.closedAt).toBe('string');
+  });
+
+  it('returns 401 without a token', async () => {
+    const session = openClaimedSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/close`, {
+        method: 'POST',
+        token: null,
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(session.status).toBe('open');
+  });
+
+  it('returns 403 for a guest token and leaves the session open', async () => {
+    const session = openClaimedSession();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/close`, {
+        method: 'POST',
+        token: GUEST_TOKEN,
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(session.status).toBe('open');
+    expect(session.closedAt).toBeUndefined();
+  });
+
+  it('returns 409 while the session is a draft', async () => {
+    const session = sessionWithGuest();
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/close`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not open');
+  });
+
+  it('returns 409 while units remain unassigned', async () => {
+    const session = sessionWithGuest();
+    session.status = 'open';
+    mockLookup(session);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/close`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Some units are still unassigned');
+    expect(session.status).toBe('open');
+  });
+
+  it('returns 409 when a concurrent close won the race', async () => {
+    const session = openClaimedSession();
+    mockLookup(session);
+    mockPublish(null);
+    spyOn(Session, 'findById').mockImplementation((async () => {
+      session.status = 'closed';
+      return session;
+    }) as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request(`/sessions/${session._id}/close`, { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('Session is not open');
+  });
+});
+
 describe('GET /sessions/join/:code', () => {
   beforeEach(async () => {
     spyOn(console, 'error').mockImplementation(() => {});
@@ -745,8 +860,8 @@ describe('GET /sessions/join/:code', () => {
   });
 
   it('reports an open session as available, upcasing the code', async () => {
-    const exists = spyOn(Session, 'exists').mockResolvedValue({
-      _id: 'x',
+    const findOne = spyOn(Session, 'findOne').mockResolvedValue({
+      status: 'open',
     } as never);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
@@ -755,12 +870,12 @@ describe('GET /sessions/join/:code', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ available: true });
-    expect(exists).toHaveBeenCalledWith({ code: 'ABCDEFGH', status: 'open' });
+    expect(await res.json()).toEqual({ available: true, closed: false });
+    expect(findOne).toHaveBeenCalledWith({ code: 'ABCDEFGH' }, 'status');
   });
 
-  it('reports an unmatched code as unavailable', async () => {
-    spyOn(Session, 'exists').mockResolvedValue(null as never);
+  it('reports a closed session as unavailable but closed', async () => {
+    spyOn(Session, 'findOne').mockResolvedValue({ status: 'closed' } as never);
     const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
 
     const res = await app.handle(
@@ -768,7 +883,19 @@ describe('GET /sessions/join/:code', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ available: false });
+    expect(await res.json()).toEqual({ available: false, closed: true });
+  });
+
+  it('reports an unmatched code as unavailable', async () => {
+    spyOn(Session, 'findOne').mockResolvedValue(null as never);
+    const app = moduleWith(mock<ExtractReceipt>(async () => extracted));
+
+    const res = await app.handle(
+      request('/sessions/join/ABCDEFGH', { token: null }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: false, closed: false });
   });
 
   it.each([

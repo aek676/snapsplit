@@ -2,12 +2,13 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { api, apiError } from '@/lib/api-client';
 import type { QueryConfig } from '@/lib/react-query';
+import type { SessionAvailability } from '@/types/session';
 
 export const getSessionAvailability = async ({
   code,
 }: {
   code: string;
-}): Promise<{ available: boolean }> => {
+}): Promise<SessionAvailability> => {
   return api.sessions
     .join({ code })
     .get()

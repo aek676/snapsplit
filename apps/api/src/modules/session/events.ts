@@ -4,6 +4,7 @@ export const SESSION_EVENT_TYPES = [
   'connected',
   'claims-updated',
   'participant-joined',
+  'session-closed',
   'heartbeat',
 ] as const;
 

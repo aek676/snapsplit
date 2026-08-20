@@ -306,10 +306,10 @@ describe('checking a share code before joining', () => {
     const res = await availability(session.code);
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ available: true });
+    expect(await res.json()).toEqual({ available: true, closed: false });
   });
 
-  it('answers an unknown code and a closed session identically', async () => {
+  it('marks a closed session as closed and an unknown code as neither', async () => {
     const session = await createOpenSession();
     await Session.updateOne({ code: session.code }, { status: 'closed' });
 
@@ -318,8 +318,8 @@ describe('checking a share code before joining', () => {
 
     expect(closed.status).toBe(200);
     expect(unknown.status).toBe(200);
-    expect(await closed.json()).toEqual({ available: false });
-    expect(await unknown.json()).toEqual({ available: false });
+    expect(await closed.json()).toEqual({ available: false, closed: true });
+    expect(await unknown.json()).toEqual({ available: false, closed: false });
   });
 });
 

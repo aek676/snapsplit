@@ -38,6 +38,7 @@ const sessionView = t.Object({
   totalCents: t.Number(),
   totalSource,
   receiptImageUrl: t.String(),
+  closedAt: t.Nullable(t.String({ format: 'date-time' })),
   lineItems: t.Array(lineItemView),
   participants: t.Array(participantView),
 });
@@ -89,7 +90,10 @@ export const SessionModel = {
       ]),
     }),
   ]),
-  sessionAvailabilityResponse: t.Object({ available: t.Boolean() }),
+  sessionAvailabilityResponse: t.Object({
+    available: t.Boolean(),
+    closed: t.Boolean(),
+  }),
   claimBody: t.Object({ units: t.Integer({ minimum: 0 }) }),
   sessionEvent: t.Object({
     type: t.UnionEnum([...SESSION_EVENT_TYPES]),
@@ -112,6 +116,8 @@ export const SessionModel = {
   sessionFull: t.Literal('Session is full'),
   notEnoughUnits: t.Literal('Not enough units available'),
   claimConflict: t.Literal('Claim conflicted, please retry'),
+  sessionHasUnassignedUnits: t.Literal('Some units are still unassigned'),
+  closeConflict: t.Literal('Close conflicted, please retry'),
   tooManyJoinAttempts: t.Literal(
     'Too many join attempts. Try again in a minute.',
   ),

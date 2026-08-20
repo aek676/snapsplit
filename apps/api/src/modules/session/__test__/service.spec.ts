@@ -120,6 +120,16 @@ describe('toSessionView', () => {
 
     expect(view.merchant).toBeNull();
     expect(view.date).toBeNull();
+    expect(view.closedAt).toBeNull();
+  });
+
+  it('serializes closedAt as an ISO timestamp when set', () => {
+    const doc = new Session(
+      buildDraftPayload(deviceTokenHash, extracted, '/receipts/x.png'),
+    );
+    doc.closedAt = new Date('2026-08-19T10:00:00.000Z');
+
+    expect(toSessionView(doc).closedAt).toBe('2026-08-19T10:00:00.000Z');
   });
 });
 
@@ -1275,5 +1285,240 @@ describe('SessionService.setClaim', () => {
       response: 'Claim conflicted, please retry',
     });
     expect(events.publish).not.toHaveBeenCalled();
+  });
+});
+
+function fullyClaimedSession() {
+  const session = openSession();
+  session.lineItems[0].claims.push({
+    participantId: session.participants[0]._id,
+    units: 3,
+  });
+  session.lineItems[1].claims.push({
+    participantId: session.participants[1]._id,
+    units: 1,
+  });
+  return session;
+}
+
+type CloseAttempt = {
+  filter: Record<string, unknown>;
+  set: Record<string, unknown>;
+};
+
+function mockCloseWrite(target: HydratedDocument<Session> | null) {
+  const attempts: CloseAttempt[] = [];
+  spyOn(Session, 'findOneAndUpdate').mockImplementation(((
+    filter: Record<string, unknown>,
+    update: { $set: Record<string, unknown> },
+  ) => {
+    attempts.push({ filter, set: update.$set });
+    if (!target) return Promise.resolve(null);
+    Object.assign(target, update.$set);
+    return Promise.resolve(target);
+  }) as never);
+  return attempts;
+}
+
+describe('SessionService.closeSession', () => {
+  afterEach(() => {
+    mock.restore();
+  });
+
+  function serviceWith(events = fakeEvents()) {
+    return {
+      events,
+      service: new SessionService(
+        mock<ExtractReceipt>(async () => extracted),
+        fakeStorage(),
+        events,
+      ),
+    };
+  }
+
+  it('closes a fully claimed open session', async () => {
+    const session = fullyClaimedSession();
+    const attempts = mockCloseWrite(session);
+    const { service, events } = serviceWith();
+
+    const result = (await service.closeSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.status).toBe('closed');
+    expect(typeof result.closedAt).toBe('string');
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].filter).toEqual({
+      _id: session._id,
+      status: 'open',
+      __v: 7,
+    });
+    expect(attempts[0].set).toMatchObject({
+      status: 'closed',
+      closedAt: expect.any(Date),
+    });
+    expect(events.publish).toHaveBeenCalledTimes(1);
+    expect(events.publish).toHaveBeenCalledWith(String(session._id), {
+      type: 'session-closed',
+      at: expect.any(String),
+    });
+  });
+
+  it('rejects closing a draft', async () => {
+    const session = fullyClaimedSession();
+    session.status = 'draft';
+    const attempts = mockCloseWrite(session);
+    const { service, events } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not open',
+    });
+    expect(attempts).toHaveLength(0);
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('rejects closing an already closed session', async () => {
+    const session = fullyClaimedSession();
+    session.status = 'closed';
+    const { service } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Session is not open',
+    });
+  });
+
+  it('rejects closing while no units are claimed', async () => {
+    const session = openSession();
+    const attempts = mockCloseWrite(session);
+    const { service, events } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Some units are still unassigned',
+    });
+    expect(attempts).toHaveLength(0);
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('rejects closing while some units remain unassigned', async () => {
+    const session = fullyClaimedSession();
+    session.lineItems[0].claims[0].units = 2;
+    const { service } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Some units are still unassigned',
+    });
+  });
+
+  it('treats a zero-quantity line item as fully assigned', async () => {
+    const session = fullyClaimedSession();
+    session.lineItems.push({
+      name: 'Propina',
+      quantity: 0,
+      unitPriceCents: 0,
+      lineTotalCents: 0,
+      aiConfidence: 1,
+      claims: [],
+    });
+    mockCloseWrite(session);
+    const { service } = serviceWith();
+
+    const result = (await service.closeSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(result.status).toBe('closed');
+  });
+
+  it('rereads and retries when the compare-and-swap misses', async () => {
+    const session = fullyClaimedSession();
+
+    const write = spyOn(Session, 'findOneAndUpdate')
+      .mockResolvedValueOnce(null)
+      .mockImplementationOnce(((
+        _filter: unknown,
+        update: { $set: Record<string, unknown> },
+      ) => {
+        Object.assign(session, update.$set);
+        return Promise.resolve(session);
+      }) as never);
+    spyOn(Session, 'findById').mockImplementation((async () => {
+      session.set('__v', 8);
+      return session;
+    }) as never);
+    const { service, events } = serviceWith();
+
+    const result = (await service.closeSession(
+      session,
+    )) as SessionModel['draftSessionResponse'];
+
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(write.mock.calls[0][0]).toMatchObject({ __v: 7 });
+    expect(write.mock.calls[1][0]).toMatchObject({ __v: 8 });
+    expect(result.status).toBe('closed');
+    expect(events.publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('rechecks the units on retry and rejects a released claim', async () => {
+    const session = fullyClaimedSession();
+
+    spyOn(Session, 'findOneAndUpdate').mockResolvedValue(null);
+    spyOn(Session, 'findById').mockImplementation((async () => {
+      session.lineItems[0].claims.splice(0);
+      session.set('__v', 8);
+      return session;
+    }) as never);
+    const { service, events } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Some units are still unassigned',
+    });
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('gives up with a conflict after exhausting retries', async () => {
+    const session = fullyClaimedSession();
+
+    const write = spyOn(Session, 'findOneAndUpdate').mockResolvedValue(null);
+    spyOn(Session, 'findById').mockResolvedValue(session);
+    const { service, events } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 409,
+      response: 'Close conflicted, please retry',
+    });
+    expect(write).toHaveBeenCalledTimes(3);
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the session vanishes before a retry', async () => {
+    const session = fullyClaimedSession();
+
+    spyOn(Session, 'findOneAndUpdate').mockResolvedValue(null);
+    spyOn(Session, 'findById').mockResolvedValue(null);
+    const { service } = serviceWith();
+
+    const result = await service.closeSession(session);
+
+    expect(result).toMatchObject({
+      code: 404,
+      response: 'Session not found',
+    });
   });
 });

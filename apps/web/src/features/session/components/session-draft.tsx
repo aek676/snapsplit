@@ -5,6 +5,7 @@ import { useDeleteSession } from '@/features/session/api/delete-session';
 import { useUpdateSession } from '@/features/session/api/update-session';
 import { ConfirmSessionButton } from '@/features/session/components/confirm-session-button';
 import { EditReceiptTotal } from '@/features/session/components/edit-receipt-total';
+import { formatSessionDate } from '@/features/session/utils/format-session-date';
 import { receiptTotals } from '@/features/session/utils/receipt-totals';
 import type { Session } from '@/types/session';
 import { formatCents, formatCentsBare } from '@/utils/money';
@@ -135,11 +136,4 @@ function ReviewFooter({ session }: { session: Session }) {
       </div>
     </div>
   );
-}
-
-function formatSessionDate(date: string | null): string | null {
-  if (!date) return null;
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString('en', { day: 'numeric', month: 'short' });
 }

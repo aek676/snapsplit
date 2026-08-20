@@ -1,5 +1,5 @@
 import { claimedUnits, remainingUnits } from '@repo/split-logic';
-import type { LineItem, Session } from '@/types/session';
+import type { LineItem, Participant, Session } from '@/types/session';
 
 export { claimedUnits, remainingUnits };
 
@@ -53,6 +53,51 @@ export function applyClaim(
       };
     }),
   };
+}
+
+export type BreakdownLine = {
+  lineItemId: string;
+  name: string;
+  units: number;
+  totalCents: number;
+};
+
+export type ParticipantBreakdown = {
+  participant: Participant;
+  totalCents: number;
+  lines: BreakdownLine[];
+};
+
+export function participantBreakdowns(
+  session: Pick<Session, 'lineItems' | 'participants'>,
+): ParticipantBreakdown[] {
+  return session.participants.map((participant) => {
+    const lines = session.lineItems.flatMap((item) => {
+      const units = myUnits(item, participant.id);
+      if (units === 0) return [];
+
+      return {
+        lineItemId: item.id,
+        name: item.name,
+        units,
+        totalCents: units * item.unitPriceCents,
+      };
+    });
+
+    return {
+      participant,
+      totalCents: lines.reduce((sum, line) => sum + line.totalCents, 0),
+      lines,
+    };
+  });
+}
+
+export function sessionOwner(
+  session: Pick<Session, 'participants'>,
+): Participant | null {
+  return (
+    session.participants.find((participant) => participant.isOwner) ?? null
+  );
 }
 
 export function initials(name: string | null): string {

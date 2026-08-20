@@ -188,6 +188,26 @@ export function createSessionModule(
         },
       },
     )
+    .post('/:sessionId/close', ({ session }) => service.closeSession(session), {
+      owner: true,
+      params: SessionModel.sessionParams,
+      response: {
+        200: SessionModel.draftSessionResponse,
+        401: AuthModel.unauthorized,
+        403: AuthModel.forbidden,
+        404: SessionModel.sessionNotFound,
+        409: t.Union([
+          SessionModel.sessionNotOpen,
+          SessionModel.sessionHasUnassignedUnits,
+          SessionModel.closeConflict,
+        ]),
+        500: SessionModel.internalError,
+      },
+      detail: {
+        summary: 'Close an open session, freezing claims and totals',
+        tags: ['Sessions'],
+      },
+    })
     .put(
       '/:sessionId/line-items/:lineItemId/claim',
       ({ session, participant, params, body }) =>
