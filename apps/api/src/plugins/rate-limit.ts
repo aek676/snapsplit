@@ -14,6 +14,13 @@ const MAX_JOIN_ATTEMPTS = 30;
 // freely by the UI, it affords a looser one.
 const MAX_AVAILABILITY_READS = 60;
 
+const ANALYZE_WINDOW_MS = 3_600_000;
+// Analysis is the expensive endpoint — a 10MB upload, up to three Gemini
+// calls and a GCS write per attempt — and needs no session to exist, so its
+// budget is the spend cap for anonymous traffic. Ten an hour covers honest
+// retries of a blurry photo while keeping a scripted caller's cost bounded.
+const MAX_ANALYZE_ATTEMPTS = 10;
+
 const UNKNOWN_CLIENT = 'unknown';
 
 // TRUST_PROXY counts the proxies in front of the API rather than acting as a
@@ -45,6 +52,7 @@ const clientKey = createClientKey(
 
 export const joinRateLimitContext = new DefaultContext();
 export const availabilityRateLimitContext = new DefaultContext();
+export const analyzeRateLimitContext = new DefaultContext();
 
 const JOIN_PATH = /^\/sessions\/join\//;
 
@@ -57,6 +65,15 @@ function isJoinAttempt(request: Request) {
 function isAvailabilityRead(request: Request) {
   return (
     request.method === 'GET' && JOIN_PATH.test(new URL(request.url).pathname)
+  );
+}
+
+const ANALYZE_PATH = /^\/sessions\/analyze$/;
+
+function isAnalyzeAttempt(request: Request) {
+  return (
+    request.method === 'POST' &&
+    ANALYZE_PATH.test(new URL(request.url).pathname)
   );
 }
 
@@ -80,4 +97,15 @@ export const availabilityRateLimit = rateLimit({
   countFailedRequest: true,
   skip: (request) => !isAvailabilityRead(request),
   errorResponse: SessionModel.tooManyJoinAttempts.const,
+});
+
+export const analyzeRateLimit = rateLimit({
+  duration: ANALYZE_WINDOW_MS,
+  max: MAX_ANALYZE_ATTEMPTS,
+  scoping: 'scoped',
+  generator: clientKey,
+  context: analyzeRateLimitContext,
+  countFailedRequest: true,
+  skip: (request) => !isAnalyzeAttempt(request),
+  errorResponse: SessionModel.tooManyAnalyzeAttempts.const,
 });

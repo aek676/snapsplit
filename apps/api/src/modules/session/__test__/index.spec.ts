@@ -9,6 +9,7 @@ import {
 } from 'bun:test';
 import type { ExtractedReceipt, ExtractReceipt } from '../../../ai/receipt';
 import {
+  analyzeRateLimitContext,
   availabilityRateLimitContext,
   joinRateLimitContext,
 } from '../../../plugins/rate-limit';
@@ -72,7 +73,8 @@ const imageFile = (type = 'image/png') =>
   new File([PNG_BYTES], 'receipt.png', { type });
 
 describe('POST /sessions/analyze', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await analyzeRateLimitContext.reset();
     spyOn(console, 'error').mockImplementation(() => {});
     spyOn(Session.prototype, 'save').mockImplementation(async function (
       this: unknown,
