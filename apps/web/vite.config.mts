@@ -5,15 +5,17 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 
-function requireApiUrl(env: Record<string, string>): Plugin {
+function requireEnv(env: Record<string, string>, keys: string[]): Plugin {
   return {
-    name: 'require-api-url',
+    name: 'require-env',
     apply: 'build',
     buildStart() {
-      if (!env.VITE_API_URL) {
-        throw new Error(
-          'VITE_API_URL must be set to build the web app (see apps/web/.env.example)',
-        );
+      for (const key of keys) {
+        if (!env[key]) {
+          throw new Error(
+            `${key} must be set to build the web app (see apps/web/.env.example)`,
+          );
+        }
       }
     },
   };
@@ -44,7 +46,7 @@ export default defineConfig(({ mode }) => {
       }),
       react(),
       tailwindcss(),
-      requireApiUrl(env),
+      requireEnv(env, ['VITE_API_URL', 'VITE_SITE_URL']),
     ],
     // Uncomment this if you are using workers.
     // worker: {

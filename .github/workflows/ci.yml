@@ -60,4 +60,5 @@ jobs:
       - name: Format, lint, typecheck, test & build (affected)
         env:
           VITE_API_URL: https://api.invalid
+          VITE_SITE_URL: https://snapsplit.invalid
         run: bunx nx affected -t format:check lint tsc:typecheck test test:integration build

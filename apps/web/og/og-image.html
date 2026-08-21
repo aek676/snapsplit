@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: "Playfair Display";
+        font-weight: 600;
+        src: url("../../../node_modules/@fontsource/playfair-display/files/playfair-display-latin-600-normal.woff2")
+          format("woff2");
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(
+          circle at 50% 38%,
+          #9d7bc7 0%,
+          #8e6bbb 45%,
+          #70519a 100%
+        );
+      }
+
+      body::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 14px;
+        background: #2a2530;
+      }
+
+      h1 {
+        font-family: "Playfair Display", Georgia, serif;
+        font-weight: 600;
+        font-size: 168px;
+        letter-spacing: -5px;
+        line-height: 1;
+        color: #2a2530;
+      }
+
+      h1 span {
+        color: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Snap<span>Split</span></h1>
+  </body>
+</html>

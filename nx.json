@@ -22,7 +22,12 @@
     "build": {
       "cache": true,
       "dependsOn": ["^build"],
-      "inputs": ["production", "^production", { "env": "VITE_API_URL" }]
+      "inputs": [
+        "production",
+        "^production",
+        { "env": "VITE_API_URL" },
+        { "env": "VITE_SITE_URL" }
+      ]
     },
     "test": {
       "cache": true,
