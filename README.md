@@ -1,40 +1,72 @@
 # SnapSplit
 
-Real-time bill splitting for friends. Snap the receipt, let AI parse the items, and watch your mates claim their tabs live.
+Real-time bill splitting for friends. Snap the receipt, let AI parse the
+items, and watch your mates claim their tabs live.
 
-## Development
+## Getting started
 
 ### Prerequisites
 
-- **bun** and **Node**, both pinned in `.tool-versions` (`mise install` provisions them).
-- **Docker**, for the local service stack in `compose.yaml` and for the API integration tests.
-
-### Getting started
+- **bun** and **Node**, both pinned in `.tool-versions` (`mise install`
+  provisions them).
+- **Docker**, for the local service stack in `compose.yaml` and for the API
+  integration tests.
 
 ```sh
 bun install
-docker compose up -d   # MongoDB, fake-gcs-server, mongo-express
-bun dev                # serves the API and the web app
+docker compose up -d
+cp apps/api/.env.example apps/api/.env
+bun dev
 ```
 
-The API reads its configuration from the environment; see `apps/api/.env.example` for the
-variables it expects.
+> [!NOTE]
+> Fill in the values that `apps/api/.env.example` lists before running
+> `bun dev`.
 
-### Tests
+The web app runs on <http://localhost:4200> and the API on
+<http://localhost:3000>.
 
-| Command                       | Scope                                   |
-| ----------------------------- | --------------------------------------- |
-| `bun nx test api`             | API unit tests (`apps/api/src`), cached |
-| `bun nx test:integration api` | API integration tests (`apps/api/test`) |
-| `bun nx run-many -t test`     | every project's unit tests              |
+## Workspace scripts
 
-`test:integration` starts a `mongo:7.0` [testcontainer](https://testcontainers.com), so it
-needs a reachable Docker socket — without one it fails while starting the container rather
-than on an assertion. The first run pulls the image, which is why startup allows 180s.
-`bun nx run-many -t test` does not include it; run the target explicitly.
+Run these from the repo root; each one fans out across every project.
 
-## Deployment
+| Command         | What it does                                   |
+| --------------- | ---------------------------------------------- |
+| `bun dev`       | serves the API and the web app in watch mode   |
+| `bun preview`   | builds, then runs both apps in production mode |
+| `bun build`     | builds every project                           |
+| `bun test`      | runs every project's unit tests                |
+| `bun typecheck` | type-checks every project                      |
+| `bun lint`      | lints every project with Biome                 |
+| `bun format`    | formats every project with Biome               |
 
-See [docs/deployment.md](docs/deployment.md) — notably the GCS Object
-Lifecycle rule that must accompany the 90-day session TTL so receipt images
-do not outlive their sessions.
+## Running a single project
+
+Every script above is an Nx target, so you can run it for one project with
+`bun nx <target> <project>`. The projects are `api`, `web`, `shared-types`,
+`split-logic`, `shadcn-ui` and `shadcn-ui-utils`.
+
+```sh
+bun nx serve api           # or: bun dev:api
+bun nx serve web           # or: bun dev:web
+bun nx test api            # API unit tests only (apps/api/src), cached
+bun nx test split-logic    # one library's unit tests
+bun nx lint web            # lint a single project
+bun nx build api           # build a single project
+```
+
+### API integration tests
+
+`bun nx test api` covers `apps/api/src` and stays free of external services.
+The suite under `apps/api/test` lives in a separate target:
+
+```sh
+bun nx test:integration api
+```
+
+It boots two [testcontainers](https://testcontainers.com) for the run
+`mongo:7.0` and the `fsouza/fake-gcs-server` emulator — so it needs a reachable
+Docker socket; without one it fails while starting the containers rather than
+on an assertion. The first run pulls both images, which is why startup allows
+180s. Neither `bun test` nor `bun nx run-many -t test` includes this target, so
+run it explicitly.
