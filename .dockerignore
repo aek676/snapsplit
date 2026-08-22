@@ -3,6 +3,7 @@
 
 **/node_modules
 dist
+!dist/apps/api/server
 **/out-tsc
 **/*.tsbuildinfo
 
@@ -14,9 +15,6 @@ dist
 .dev
 
 apps/web
-# `bun ci` reads every workspace member's package.json to validate the lockfile,
-# so this one file has to stay in the context even though the API never uses it.
-!apps/web/package.json
 libs/shadcn-ui
 libs/shadcn-ui-utils
 
