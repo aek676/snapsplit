@@ -1,0 +1,25 @@
+{
+  "name": "@repo/web",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@elysiajs/eden": "^1.4.9",
+    "@fontsource-variable/hanken-grotesk": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
+    "@repo/api": "workspace:*",
+    "@repo/shared-types": "workspace:*",
+    "@repo/split-logic": "workspace:*",
+    "@tanstack/react-form": "^1.33.5",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-router": "^1.170.27",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.31.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-number-format": "^5.4.5",
+    "tailwind-merge": "^3.6.0",
+    "zod": "catalog:"
+  }
+}

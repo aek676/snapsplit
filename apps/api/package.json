@@ -8,5 +8,20 @@
       "types": "./src/app.ts",
       "default": "./src/app.ts"
     }
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.43",
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/openapi": "^1.4.15",
+    "@google-cloud/storage": "^7.22.0",
+    "@repo/shared-types": "workspace:*",
+    "@repo/split-logic": "workspace:*",
+    "ai": "^7.0.64",
+    "close-with-grace": "^2.5.0",
+    "elysia": "^1.4.29",
+    "elysia-healthcheck": "^1.0.0",
+    "elysia-rate-limit": "^4.6.2",
+    "mongoose": "^9.9.2",
+    "zod": "catalog:"
   }
 }
