@@ -20,6 +20,25 @@ services:
       - fake-gcs-data:/storage
       - ./.dev/gcs:/data
 
+  api:
+    profiles:
+      - api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: hermetic
+    ports:
+      - 3000:3000
+    env_file: apps/api/.env
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://root:example@mongo:27017/snapsplit?authSource=admin
+      GCS_EMULATOR_HOST: http://fake-gcs:4443
+      CORS_ORIGIN: http://localhost:4200
+    depends_on:
+      - mongo
+      - fake-gcs
+
   mongo-express:
     image: mongo-express
     restart: always

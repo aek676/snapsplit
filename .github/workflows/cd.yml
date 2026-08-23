@@ -1,0 +1,67 @@
+name: CD
+
+on:
+  workflow_call:
+    inputs:
+      nx-base:
+        description: >-
+          Base SHA for `nx affected`. CI derives it once and hands it over so
+          both halves of the pipeline judge the same range of commits.
+        required: true
+        type: string
+      nx-head:
+        description: Head SHA for `nx affected`, paired with `nx-base`.
+        required: true
+        type: string
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish affected images
+    runs-on: ubuntu-latest
+    env:
+      NX_BASE: ${{ inputs.nx-base }}
+      NX_HEAD: ${{ inputs.nx-head }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v4
+
+      - name: Get Bun cache dir
+        id: bun-cache-dir
+        run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Bun cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.bun-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish container images (affected)
+        run: bunx nx affected -t publish

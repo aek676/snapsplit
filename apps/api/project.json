@@ -15,7 +15,7 @@
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
       "options": {
-        "command": "bun dist/apps/api/index.js"
+        "command": "./dist/apps/api/server"
       }
     },
     "test": {
@@ -41,7 +41,35 @@
       "cache": true,
       "outputs": ["{workspaceRoot}/dist/apps/api"],
       "options": {
-        "command": "bun build apps/api/src/index.ts --target bun --outdir dist/apps/api"
+        "command": "sh apps/api/scripts/compile.sh bun dist/apps/api/server"
+      }
+    },
+    "build:linux-amd64": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "outputs": ["{workspaceRoot}/dist/apps/api-linux/amd64"],
+      "options": {
+        "command": "sh apps/api/scripts/compile.sh bun-linux-x64 dist/apps/api-linux/amd64/server"
+      }
+    },
+    "build:linux-arm64": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "outputs": ["{workspaceRoot}/dist/apps/api-linux/arm64"],
+      "options": {
+        "command": "sh apps/api/scripts/compile.sh bun-linux-arm64 dist/apps/api-linux/arm64/server"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build:linux-amd64", "build:linux-arm64"],
+      "options": {
+        "command": "sh apps/api/scripts/publish.sh"
       }
     },
     "lint": {
