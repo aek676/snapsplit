@@ -64,6 +64,14 @@
         "command": "sh apps/api/scripts/compile.sh bun-linux-arm64 dist/apps/api-linux/arm64/server"
       }
     },
+    "publish": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build:linux-amd64", "build:linux-arm64"],
+      "options": {
+        "command": "sh apps/api/scripts/publish.sh"
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "cache": true,
