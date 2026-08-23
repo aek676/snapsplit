@@ -3,7 +3,8 @@
 
 **/node_modules
 dist
-!dist/apps/api/server
+!dist/apps/api-linux/amd64/server
+!dist/apps/api-linux/arm64/server
 **/out-tsc
 **/*.tsbuildinfo
 
