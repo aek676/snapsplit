@@ -7,7 +7,7 @@ set -eu
 image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')-api"
 
 set -- --tag "$image:sha-$(printf '%.7s' "$GITHUB_SHA")"
-if [ "${GITHUB_REF_NAME:-main}" = main ]; then
+if [ "${GITHUB_REF_NAME:-}" = main ]; then
 	set -- "$@" --tag "$image:latest"
 fi
 
