@@ -19,6 +19,9 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    outputs:
+      nx-base: ${{ steps.set-shas.outputs.base }}
+      nx-head: ${{ steps.set-shas.outputs.head }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -52,6 +55,7 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
 
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
+        id: set-shas
         uses: nrwl/nx-set-shas@v5
 
       - name: Check Nx sync
@@ -62,3 +66,14 @@ jobs:
           VITE_API_URL: https://api.invalid
           VITE_SITE_URL: https://snapsplit.invalid
         run: bunx nx affected -t format:check lint tsc:typecheck test test:integration build
+
+  cd:
+    needs: ci
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/cd.yml
+    with:
+      nx-base: ${{ needs.ci.outputs.nx-base }}
+      nx-head: ${{ needs.ci.outputs.nx-head }}
