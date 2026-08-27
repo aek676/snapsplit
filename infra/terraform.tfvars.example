@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+# The OCIDs are in the console: your avatar → Tenancy, and Identity →
+# Compartments. The root compartment's OCID is the tenancy's own.
+
+tenancy_ocid     = "ocid1.tenancy.oc1..xxxxxxxx"
+compartment_ocid = "ocid1.tenancy.oc1..xxxxxxxx"
+region           = "eu-madrid-1"
+api_user_email   = "you@example.com"
+
+# Uncomment to turn the VM's public IP into a reserved one. Detach the
+# ephemeral address in the console first — see the note in main.tf.
+# instance_ocid = "ocid1.instance.oc1.eu-madrid-1.xxxxxxxx"

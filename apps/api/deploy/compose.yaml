@@ -5,15 +5,18 @@
 #
 # The .env must carry the runtime configuration documented in
 # apps/api/.env.example — at minimum MONGODB_URI, CORS_ORIGIN (a startup error
-# when unset, since the image sets NODE_ENV=production), GCS_BUCKET and
-# GOOGLE_GENERATIVE_AI_API_KEY.
+# when unset, since the image sets NODE_ENV=production), the S3_* block and
+# GOOGLE_GENERATIVE_AI_API_KEY — plus API_DOMAIN for the certificate Caddy
+# fetches, and MONGO_USERNAME/MONGO_PASSWORD for the database below.
 
 services:
   api:
     image: ghcr.io/aek676/snapsplit-api:${API_IMAGE_TAG:?run apps/api/scripts/deploy.sh, it sets this}
     restart: unless-stopped
-    ports:
-      - 3000:3000
+    # No published port: caddy reaches the API over the compose network, so the
+    # only things listening on the host are 80 and 443.
+    expose:
+      - 3000
     env_file: .env
     environment:
       # The API sits behind a reverse proxy in this topology; without the hop
@@ -22,6 +25,27 @@ services:
       TRUST_PROXY: 1
     depends_on:
       - mongo
+
+  # Terminates TLS for API_DOMAIN and proxies to the API. Caddy fetches the
+  # certificate from Let's Encrypt over the HTTP-01 challenge, which is why 80
+  # must stay open alongside 443 — on Oracle Linux that means the VCN security
+  # list *and* firewalld. The caddy-data volume keeps the certificate across
+  # recreates; without it every restart asks for a new one and runs into the
+  # rate limit.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set it in .env, e.g. api.snapsplit.duckdns.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
 
   # Drop this service and point MONGODB_URI at Atlas if you would rather not
   # run the database yourself — nothing else in the file depends on it.
@@ -36,3 +60,5 @@ services:
 
 volumes:
   mongo-data:
+  caddy-data:
+  caddy-config:

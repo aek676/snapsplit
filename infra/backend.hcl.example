@@ -1,0 +1,27 @@
+# Copy to backend.hcl (gitignored), fill in, then:
+#
+#   terraform init -backend-config=backend.hcl
+#
+# Create the bucket by hand first (Object Storage → Create Bucket, enable
+# versioning so a corrupted state can be rolled back), and export a Customer
+# Secret Key of *your own* user as AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY —
+# not the API's key, which this run is what creates.
+#
+# The skip_* flags are what let the AWS backend talk to a non-AWS endpoint: it
+# would otherwise try to validate the region name and call STS and IMDS, none
+# of which exist in Oracle.
+
+bucket = "snapsplit-tfstate"
+key    = "snapsplit.tfstate"
+region = "<region>"
+
+endpoints = {
+  s3 = "https://<namespace>.compat.objectstorage.<region>.oraclecloud.com"
+}
+
+use_path_style              = true
+skip_region_validation      = true
+skip_credentials_validation = true
+skip_requesting_account_id  = true
+skip_metadata_api_check     = true
+skip_s3_checksum            = true

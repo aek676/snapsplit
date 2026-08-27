@@ -44,14 +44,46 @@ host's, and survive untouched.
 The VM needs, once, by hand:
 
 - Docker with the Compose plugin.
-- `DEPLOY_PATH` (default `/opt/snapsplit`) holding a `compose.yaml` copied from
-  `apps/api/deploy/compose.yaml`, and a `.env` with the runtime configuration
-  from `apps/api/.env.example` — at minimum `MONGODB_URI`, `CORS_ORIGIN`,
-  `GCS_BUCKET`, `GOOGLE_GENERATIVE_AI_API_KEY`.
-- Application Default Credentials for GCS, since `new Storage()` takes no
-  explicit credentials — a service account on the VM, or
-  `GOOGLE_APPLICATION_CREDENTIALS` pointing at a mounted key.
+- `DEPLOY_PATH` (default `/opt/snapsplit`) holding `compose.yaml` and
+  `Caddyfile`, both copied from `apps/api/deploy/`, and a `.env` with the
+  runtime configuration from `apps/api/.env.example` — at minimum
+  `MONGODB_URI`, `CORS_ORIGIN`, the `S3_*` block,
+  `GOOGLE_GENERATIVE_AI_API_KEY`, plus `API_DOMAIN` and
+  `MONGO_USERNAME`/`MONGO_PASSWORD`, which only the compose file reads.
 - `docker login ghcr.io` with a `read:packages` token, if the package is private.
+- The first `docker compose up -d`. Deploys after that only recreate `api`, so
+  `caddy` and `mongo` come up here and stay up.
+
+`CORS_ORIGIN` is the *web* origin, not the API's own: the Worker URL (or its
+custom domain), which is also what `VITE_API_URL` must point back at. Getting
+either wrong shows up as the browser blocking every request.
+
+### TLS and DNS
+
+`caddy` terminates TLS for `API_DOMAIN` and proxies to `api:3000` over the
+compose network — which is why the `api` service publishes no port. Caddy asks
+Let's Encrypt for the certificate over the HTTP-01 challenge, so **80 has to be
+reachable as well as 443**, and its `caddy-data` volume keeps the certificate
+across recreates.
+
+On Oracle Linux, opening the ports takes two steps, and forgetting the second
+is the usual cause of a host that answers nothing:
+
+```sh
+# 1. Ingress rules for 80 and 443 in the VCN security list (console).
+# 2. The instance's own firewall:
+sudo firewall-cmd --permanent --add-service=http --add-service=https
+sudo firewall-cmd --reload
+```
+
+DuckDNS resolves every subdomain of a registered name to the same address, so
+one record covers `api.<name>.duckdns.org` and anything else the VM serves.
+Reserve the instance's public IP (`instance_ocid` in `infra/`) so a stop/start
+does not strand that record.
+
+The web app cannot use this domain: a Worker only takes custom domains from
+zones in your own Cloudflare account, and `duckdns.org` is not one. It stays on
+`workers.dev` until a real domain is added.
 
 The API's `deploy` target has no `dependsOn: ["publish"]`. It would otherwise
 rebuild and re-push the image from whichever runner deploys, dragging Buildx and
@@ -85,24 +117,56 @@ succeeds.
 Sessions expire through the MongoDB TTL index on `createdAt`
 (`apps/api/src/schemas/session.ts`, 90 days). TTL deletion happens inside
 MongoDB and never notifies the API, so the receipt image a session references
-in GCS is **not** deleted with it — only the explicit
-`DELETE /sessions/:sessionId` removes the blob eagerly.
+is **not** deleted with it — only the explicit `DELETE /sessions/:sessionId`
+removes the blob eagerly.
 
-To keep orphaned images from accumulating, the bucket named by `GCS_BUCKET`
-must carry an Object Lifecycle Management rule that deletes objects at the
-same horizon as the TTL index (or slightly beyond it, so no image outlives
-its session by much):
+The bucket's lifecycle rule is what keeps those orphans from accumulating. It
+is `retention_days` in `infra/`, applied by `terraform apply`. Keep it in sync
+with the TTL index whenever either changes.
 
-```json
-{
-  "rule": [{ "action": { "type": "Delete" }, "condition": { "age": 90 } }]
-}
-```
+## Infrastructure (Terraform)
 
-Apply it with:
+`infra/` provisions the receipts bucket with that retention rule, the IAM user
+whose key pair the API uses (scoped to this one bucket and nothing else), and
+optionally the reserved public IP. The VM itself is deliberately **not** managed
+there: it already exists, and a plan that proposed replacing an Always Free
+`A1` shape could destroy an instance that capacity limits make hard to get back.
+
+Run it from a laptop — CI has no Oracle credentials, and needs none. Provider
+authentication comes from `~/.oci/config` (`oci setup config`).
+
+Bootstrap once, by hand, since Terraform cannot host its own state:
+
+1. An Object Storage bucket for the state (versioning on, so a corrupted state
+   can be rolled back).
+2. A Customer Secret Key on *your* user — Identity → your user → Customer
+   Secret Keys — exported as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+
+Then:
 
 ```sh
-gcloud storage buckets update gs://$GCS_BUCKET --lifecycle-file=lifecycle.json
+cp infra/backend.hcl.example infra/backend.hcl              # fill in
+cp infra/terraform.tfvars.example infra/terraform.tfvars    # fill in
+terraform -chdir=infra init -backend-config=backend.hcl
+terraform -chdir=infra apply
 ```
 
-Keep the rule's `age` in sync with the TTL index whenever either changes.
+The outputs are the VM's `.env`, verbatim. The secret half of the key pair is
+readable only at creation, which is why it comes from the state rather than the
+console:
+
+```sh
+terraform -chdir=infra output -raw s3_secret_access_key
+```
+
+Neither `terraform.tfvars` nor `backend.hcl` nor the state is tracked — the
+state holds that secret in clear.
+
+Setting `instance_ocid` reserves the VM's public address, but Oracle will not
+convert an ephemeral IP in place: detach it first in the console (the instance's
+VNIC → Edit → No public IP). The address you get back is a different one, so
+update the DuckDNS record afterwards.
+
+One thing Terraform does not cover: on a pay-as-you-go tenancy the Always Free
+limits stop being a hard stop and become a bill. Set a budget with an alert at
+Billing & Cost Management → Budgets.

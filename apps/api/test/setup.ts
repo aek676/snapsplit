@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, beforeEach } from 'bun:test';
-import { Storage } from '@google-cloud/storage';
+import { S3Client } from 'bun';
+import {
+  MinioContainer,
+  type StartedMinioContainer,
+} from '@testcontainers/minio';
 import {
   MongoDBContainer,
   type StartedMongoDBContainer,
 } from '@testcontainers/mongodb';
 import mongoose from 'mongoose';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import {
   analyzeRateLimitContext,
   availabilityRateLimitContext,
@@ -15,45 +18,43 @@ import { createReceiptStorage } from '../src/storage';
 import type { ObjectStorage } from '../src/storage/object-storage';
 
 const STARTUP_TIMEOUT_MS = 180_000;
-
 const DATABASE_NAME = 'snapsplit-test';
-
 export const TEST_BUCKET = 'snapsplit-test-receipts';
-
 const RECEIPT_PREFIX = 'receipts';
-
-const GCS_PORT = 4443;
+// MinIO signs against this region unless told otherwise.
+const TEST_REGION = 'us-east-1';
 
 let mongoContainer: StartedMongoDBContainer;
-let gcsContainer: StartedTestContainer;
-let gcsClient: Storage;
-
-export let gcsEndpoint: string;
+let minioContainer: StartedMinioContainer;
+let s3Client: S3Client;
+let s3Env: Record<string, string> | undefined;
 
 beforeAll(
   async () => {
-    [mongoContainer, gcsContainer] = await Promise.all([
+    [mongoContainer, minioContainer] = await Promise.all([
       new MongoDBContainer('mongo:7.0').start(),
-      new GenericContainer('fsouza/fake-gcs-server:1.52.2')
-        .withExposedPorts(GCS_PORT)
-        .withCommand([
-          '-scheme',
-          'http',
-          '-host',
-          '0.0.0.0',
-          '-port',
-          String(GCS_PORT),
-        ])
-        .start(),
+      new MinioContainer('minio/minio:RELEASE.2025-09-07T16-13-09Z').start(),
     ]);
 
     const mongoUri = `${mongoContainer.getConnectionString()}/?directConnection=true`;
-
-    gcsEndpoint = `http://${gcsContainer.getHost()}:${gcsContainer.getMappedPort(GCS_PORT)}`;
+    s3Env = {
+      S3_ENDPOINT: minioContainer.getConnectionUrl(),
+      S3_REGION: TEST_REGION,
+      S3_BUCKET: TEST_BUCKET,
+      S3_ACCESS_KEY_ID: minioContainer.getUsername(),
+      S3_SECRET_ACCESS_KEY: minioContainer.getPassword(),
+    };
+    s3Client = new S3Client({
+      endpoint: s3Env.S3_ENDPOINT,
+      region: TEST_REGION,
+      bucket: TEST_BUCKET,
+      accessKeyId: s3Env.S3_ACCESS_KEY_ID,
+      secretAccessKey: s3Env.S3_SECRET_ACCESS_KEY,
+    });
 
     await Promise.all([
       mongoose.connect(mongoUri, { dbName: DATABASE_NAME }),
-      startEmulatorBucket(),
+      createTestBucket(),
     ]);
   },
   { timeout: STARTUP_TIMEOUT_MS },
@@ -71,57 +72,45 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await Promise.all([mongoContainer?.stop(), gcsContainer?.stop()]);
+  await Promise.all([mongoContainer?.stop(), minioContainer?.stop()]);
 });
 
-async function announceExternalUrl() {
-  const res = await fetch(`${gcsEndpoint}/_internal/config`, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ externalUrl: gcsEndpoint }),
-  });
-  if (!res.ok) throw new Error(`fake-gcs config rejected: ${res.status}`);
-}
-
-async function startEmulatorBucket() {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 30; attempt++) {
-    try {
-      await announceExternalUrl();
-      gcsClient = new Storage({ apiEndpoint: gcsEndpoint, projectId: 'dev' });
-      await gcsClient.createBucket(TEST_BUCKET);
-      return;
-    } catch (error) {
-      lastError = error;
-      await Bun.sleep(200);
-    }
+// Bun's S3 client only speaks to objects, so the bucket is created with the mc
+// binary the minio image ships. MC_HOST_<alias> configures the alias inline and
+// keeps mc from writing a config file into the container.
+async function createTestBucket() {
+  const alias = `http://${minioContainer.getUsername()}:${minioContainer.getPassword()}@localhost:9000`;
+  const { exitCode, output } = await minioContainer.exec(
+    ['mc', 'mb', '--ignore-existing', `local/${TEST_BUCKET}`],
+    { env: { MC_HOST_local: alias } },
+  );
+  if (exitCode !== 0) {
+    throw new Error(`could not create the ${TEST_BUCKET} bucket: ${output}`);
   }
-  throw new Error(`fake-gcs never became usable: ${lastError}`);
 }
 
 export async function resetDatabase() {
   const db = mongoose.connection.db;
   if (!db) return;
-
   const collections = await db.collections();
   await Promise.all(collections.map((collection) => collection.deleteMany({})));
 }
 
 export async function resetBucket() {
-  await gcsClient?.bucket(TEST_BUCKET).deleteFiles({ force: true });
+  if (!s3Client) return;
+  const { contents } = await s3Client.list();
+  await Promise.all(
+    (contents ?? []).map((object) => s3Client.delete(object.key)),
+  );
 }
 
 export function testStorage(): ObjectStorage {
   let delegate: ObjectStorage | undefined;
   const resolve = () => {
-    if (!gcsEndpoint) throw new Error('fake-gcs is not running yet');
-    delegate ??= createReceiptStorage({
-      GCS_BUCKET: TEST_BUCKET,
-      GCS_EMULATOR_HOST: gcsEndpoint,
-    });
+    if (!s3Env) throw new Error('MinIO is not running yet');
+    delegate ??= createReceiptStorage(s3Env);
     return delegate;
   };
-
   return {
     save: (key, bytes, mediaType) => resolve().save(key, bytes, mediaType),
     get: (key) => resolve().get(key),
@@ -129,11 +118,11 @@ export function testStorage(): ObjectStorage {
   };
 }
 
-export function bucketFile(key: string) {
-  return gcsClient.bucket(TEST_BUCKET).file(`${RECEIPT_PREFIX}/${key}`);
+export function receiptExists(key: string): Promise<boolean> {
+  return s3Client.file(`${RECEIPT_PREFIX}/${key}`).exists();
 }
 
 export async function storedReceipts() {
-  const [files] = await gcsClient.bucket(TEST_BUCKET).getFiles();
-  return files.map((file) => file.name);
+  const { contents } = await s3Client.list();
+  return (contents ?? []).map((object) => object.key);
 }

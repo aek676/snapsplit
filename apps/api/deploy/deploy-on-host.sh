@@ -25,7 +25,7 @@ esac
 
 cd "$(dirname "$0")"
 [ -f compose.yaml ] || { echo "deploy: no compose.yaml next to $0" >&2; exit 1; }
-[ -f .env ] || { echo "deploy: no .env next to $0 — the API needs MONGODB_URI, CORS_ORIGIN, GCS_BUCKET…" >&2; exit 1; }
+[ -f .env ] || { echo "deploy: no .env next to $0 — the API needs MONGODB_URI, CORS_ORIGIN, S3_BUCKET…" >&2; exit 1; }
 
 if grep -q '^API_IMAGE_TAG=' .env; then
 	sed -i "s|^API_IMAGE_TAG=.*|API_IMAGE_TAG=$tag|" .env

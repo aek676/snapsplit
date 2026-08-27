@@ -18,7 +18,7 @@ set -eu
 
 cd "$1" || { echo "deploy: $1 does not exist on the host" >&2; exit 1; }
 [ -f compose.yaml ] || { echo "deploy: no compose.yaml in $1" >&2; exit 1; }
-[ -f .env ] || { echo "deploy: no .env in $1 — the API needs MONGODB_URI, CORS_ORIGIN, GCS_BUCKET…" >&2; exit 1; }
+[ -f .env ] || { echo "deploy: no .env in $1 — the API needs MONGODB_URI, CORS_ORIGIN, S3_BUCKET…" >&2; exit 1; }
 
 if grep -q '^API_IMAGE_TAG=' .env; then
 	sed -i "s|^API_IMAGE_TAG=.*|API_IMAGE_TAG=$2|" .env

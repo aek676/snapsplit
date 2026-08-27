@@ -17,13 +17,13 @@ The API has two test targets:
 - `bun nx test api` — unit tests over `apps/api/src`. Cached, no external services.
 - `bun nx test:integration api` — integration tests over `apps/api/test`. **Requires a
   reachable Docker socket**: `apps/api/test/setup.ts` boots two testcontainers for the run,
-  `mongo:7.0` and the `fsouza/fake-gcs-server` emulator, so the suite exercises the real
-  `GcsObjectStorage` instead of a fake. Without Docker the suite fails while starting the
+  `mongo:7.0` and MinIO, so the suite exercises the real `S3ObjectStorage` against a real
+  S3 API instead of a fake. Without Docker the suite fails while starting the
   containers. Caching is disabled, and the first run pulls both images, so allow up to the
   180s startup budget.
 
 Integration specs get their storage from `testStorage()` in `apps/api/test/setup.ts`, which
-points `createReceiptStorage` at the emulator and its per-run bucket. Only the AI extraction
+points `createReceiptStorage` at MinIO and its per-run bucket. Only the AI extraction
 stays faked. Unit specs under `src` keep their own in-memory fakes — that target must stay
 cached and free of external services.
 

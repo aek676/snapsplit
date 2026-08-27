@@ -54,3 +54,10 @@ Thumbs.db
 .playwright
 .playwright-cli
 
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfvars
+!infra/*.tfvars.example
+infra/backend.hcl
