@@ -72,6 +72,13 @@
         "command": "sh apps/api/scripts/publish.sh"
       }
     },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "sh apps/api/scripts/deploy.sh"
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "cache": true,

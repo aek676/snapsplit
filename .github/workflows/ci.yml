@@ -73,6 +73,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+    secrets: inherit
     uses: ./.github/workflows/cd.yml
     with:
       nx-base: ${{ needs.ci.outputs.nx-base }}

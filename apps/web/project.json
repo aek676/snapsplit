@@ -6,6 +6,14 @@
   "tags": [],
   "// targets": "to see all targets run: nx show project web --web",
   "targets": {
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "command": "wrangler deploy --config apps/web/wrangler.jsonc"
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "cache": true,
