@@ -36,3 +36,11 @@ output "deploy_pull_commands" {
     sudo chown -R opc:opc /opt/apps/snapsplit
   EOT
 }
+
+# Debug: confirms whether the remote runner actually sees the deploy files.
+output "debug_deploy_root" {
+  value = local.deploy_root
+}
+output "debug_deploy_files" {
+  value = keys(local.deploy_files)
+}
