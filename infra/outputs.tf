@@ -23,7 +23,16 @@ output "s3_secret_access_key" {
   sensitive   = true
 }
 
-output "public_ip" {
-  description = "The reserved address, when instance_ocid is set. Point the DuckDNS record at it."
-  value       = one(oci_core_public_ip.api[*].ip_address)
+# Paste on the VM once to download the deploy files into /opt/apps/snapsplit.
+# Terraform Cloud cannot SSH in, so the VM pulls them over HTTPS egress.
+output "deploy_pull_commands" {
+  description = "Run on the VM once to fetch compose.yaml, deploy-on-host.sh and .env.example into /opt/apps/snapsplit."
+  value       = <<-EOT
+    sudo mkdir -p /opt/apps/snapsplit
+    %{for name, par in oci_objectstorage_preauthrequest.deploy}
+    sudo curl -fsSL "${par.full_path}" -o "/opt/apps/snapsplit/${name}"
+    %{endfor}
+    sudo chmod +x /opt/apps/snapsplit/deploy-on-host.sh
+    sudo chown -R opc:opc /opt/apps/snapsplit
+  EOT
 }

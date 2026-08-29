@@ -2,27 +2,17 @@ data "oci_objectstorage_namespace" "this" {
   compartment_id = var.compartment_ocid
 }
 
-# ---------------------------------------------------------------------------
-# Receipt images
-# ---------------------------------------------------------------------------
-
 resource "oci_objectstorage_bucket" "receipts" {
   compartment_id = var.compartment_ocid
   namespace      = data.oci_objectstorage_namespace.this.namespace
   name           = var.bucket_name
 
-  # Standard, not InfrequentAccess: a receipt is read right after it is
-  # uploaded, and IA bills a retrieval fee for exactly that access pattern.
   storage_tier = "Standard"
 
-  # The API proxies every image through itself (apps/api/src/modules/receipt),
-  # so nothing needs to reach the bucket anonymously.
   access_type = "NoPublicAccess"
   versioning  = "Disabled"
 }
 
-# Object Storage applies lifecycle rules as a service principal, and refuses to
-# accept the policy below until that principal is allowed to act on the bucket.
 resource "oci_identity_policy" "objectstorage_lifecycle" {
   compartment_id = var.tenancy_ocid
   name           = "snapsplit-objectstorage-lifecycle"
@@ -96,31 +86,83 @@ resource "oci_identity_customer_secret_key" "api" {
 }
 
 # ---------------------------------------------------------------------------
-# Reserved public IP (optional)
+# VM scaffold: deploy files pushed to Object Storage, pulled by the VM
 # ---------------------------------------------------------------------------
 #
-# An ephemeral IP is released whenever the instance stops, which would leave
-# the DuckDNS record pointing nowhere. Reserving it is free on Always Free.
+# Terraform Cloud cannot SSH into the VM (the security list only admits
+# ssh_allowed_cidr and TFC runners have ephemeral egress IPs), so instead of a
+# provisioner we drop the static deploy files into a bucket and hand the VM a
+# Pre-Authenticated Request it curls over HTTPS egress — the same pattern
+# my-oci-iac uses for its own apps. Secrets (.env) are never uploaded; the S3
+# key pair above is read back out with `terraform output`, never placed here.
 #
-# One manual step first: detach the current ephemeral IP in the console (the
-# instance's VNIC → Edit → No public IP). Oracle will not convert one in place,
-# and the address you end up with is a different one.
+# The VM's public IP is managed by my-oci-iac, so this module takes no
+# instance_ocid and never creates a reserved address of its own.
 
-data "oci_core_vnic_attachments" "api" {
-  count          = var.instance_ocid == null ? 0 : 1
+locals {
+  deploy_root = "${path.module}/../apps/api/deploy"
+  deploy_files = {
+    for f in fileset(local.deploy_root, "*") :
+    f => f
+    if f != ".env"
+  }
+
+  # Changes whenever any uploaded deploy file changes, so the PARs and the VM
+  # push (below) rotate/re-run and the VM never serves a stale scaffold.
+  deploy_hash = sha1(join("|", [
+    for f, o in oci_objectstorage_object.deploy :
+    "${f}:${o.md5}"
+  ]))
+
+  # The script the VM runs: pull every PAR into /opt/apps/snapsplit, make the
+  # forced-command deploy script executable, and hand ownership to opc.
+  deploy_script = <<-EOT
+    sudo mkdir -p /opt/apps/snapsplit
+    %{for name, par in oci_objectstorage_preauthrequest.deploy}
+    sudo curl -fsSL "${par.full_path}" -o "/opt/apps/snapsplit/${name}"
+    %{endfor}
+    sudo chmod +x /opt/apps/snapsplit/deploy-on-host.sh
+    sudo chown -R opc:opc /opt/apps/snapsplit
+  EOT
+}
+
+resource "time_static" "par_expiry" {}
+
+resource "oci_objectstorage_bucket" "deploy" {
   compartment_id = var.compartment_ocid
-  instance_id    = var.instance_ocid
+  namespace      = data.oci_objectstorage_namespace.this.namespace
+  name           = "snapsplit-deploy"
+  access_type    = "NoPublicAccess"
+  storage_tier   = "Standard"
 }
 
-data "oci_core_private_ips" "api" {
-  count   = var.instance_ocid == null ? 0 : 1
-  vnic_id = data.oci_core_vnic_attachments.api[0].vnic_attachments[0].vnic_id
+resource "oci_objectstorage_object" "deploy" {
+  for_each  = local.deploy_files
+  bucket    = oci_objectstorage_bucket.deploy.name
+  namespace = data.oci_objectstorage_namespace.this.namespace
+  object    = each.key
+  content   = file("${local.deploy_root}/${each.key}")
 }
 
-resource "oci_core_public_ip" "api" {
-  count          = var.instance_ocid == null ? 0 : 1
-  compartment_id = var.compartment_ocid
-  display_name   = "snapsplit-api"
-  lifetime       = "RESERVED"
-  private_ip_id  = data.oci_core_private_ips.api[0].private_ips[0].id
+resource "oci_objectstorage_preauthrequest" "deploy" {
+  for_each     = local.deploy_files
+  bucket       = oci_objectstorage_object.deploy[each.key].bucket
+  namespace    = oci_objectstorage_object.deploy[each.key].namespace
+  object_name  = oci_objectstorage_object.deploy[each.key].object
+  name         = "deploy-${local.deploy_hash}-${sha1(each.key)}-30d"
+  access_type  = "ObjectRead"
+  time_expires = timeadd(time_static.par_expiry.rfc3339, "720h")
 }
+
+# ---------------------------------------------------------------------------
+# VM scaffold delivery
+# ---------------------------------------------------------------------------
+#
+# Terraform Cloud cannot SSH into the VM, and the OCI provider (oracle/oci up to
+# 8.29.0) does not expose InstanceAgentCommand as a managed resource. So the
+# deploy files above are pushed to the existing VM with the OCI CLI Run Command
+# (Oracle Cloud Agent "Instance Run Command" plugin), driven from `vm_scaffold.tf`
+# via a `null_resource` that runs on the machine applying this config. It curls
+# the PARs into /opt/apps/snapsplit. After that, CI pushes only image tags via
+# the deploy key. `deploy_pull_commands` stays as a manual fallback for hosts
+# without the `oci` CLI.

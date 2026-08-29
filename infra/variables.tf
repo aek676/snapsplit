@@ -4,7 +4,7 @@ variable "tenancy_ocid" {
 }
 
 variable "compartment_ocid" {
-  description = "OCID of the compartment holding the bucket and the reserved IP."
+  description = "OCID of the compartment holding the bucket and the IAM resources."
   type        = string
 }
 
@@ -38,7 +38,20 @@ variable "api_user_email" {
 }
 
 variable "instance_ocid" {
-  description = "OCID of the VM running the API. Set it to convert its public IP into a reserved one; leave null to skip that (the ephemeral IP then changes on every stop/start)."
+  description = <<-EOT
+    OCID of the VM that should receive the scaffold (the one my-oci-iac owns:
+    `terraform output -raw instance_id`). When set, a `null_resource` invokes the
+    OCI CLI `compute instance-agent` Run Command to push compose.yaml,
+    deploy-on-host.sh and .env.example into /opt/apps/snapsplit automatically — no
+    SSH, no manual paste. Leave empty to skip and use the `deploy_pull_commands`
+    output instead.
+
+    Requires the `oci` CLI on the machine running `terraform apply` (the deploying
+    identity must be able to manage instance-agent-command-family in the compartment)
+    and the Oracle Cloud Agent "Instance Run Command" plugin enabled on the VM. The
+    plugin runs as `ocarun`; grant it NOPASSWD sudo once (`ocarun ALL=(ALL) NOPASSWD:ALL`)
+    so the script can write to /opt/apps.
+  EOT
   type        = string
-  default     = null
+  default     = ""
 }

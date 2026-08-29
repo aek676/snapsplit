@@ -1,6 +1,0 @@
-# Copied onto the VM next to compose.yaml, like the compose file itself — a
-# deploy only rewrites API_IMAGE_TAG in .env, so this file is the host's.
-# API_DOMAIN comes from that same .env through the caddy service.
-{$API_DOMAIN} {
-	reverse_proxy api:3000
-}

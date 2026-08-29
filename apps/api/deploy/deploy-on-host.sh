@@ -2,7 +2,7 @@
 # Runs on the VM, next to compose.yaml, and is pinned as the forced command of
 # the CI deploy key in ~/.ssh/authorized_keys:
 #
-#   restrict,command="/opt/snapsplit/deploy-on-host.sh" ssh-ed25519 AAAA… ci@snapsplit
+#   restrict,command="/opt/apps/snapsplit/deploy-on-host.sh" ssh-ed25519 AAAA… ci@snapsplit
 #
 # With that in place the key can recreate the API at a tag and nothing else: no
 # shell, no forwarding, and whatever CI sends arrives as $SSH_ORIGINAL_COMMAND
