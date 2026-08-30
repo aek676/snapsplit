@@ -6,7 +6,7 @@ import { createSessionModule } from '../src/modules/session';
 import { SessionService } from '../src/modules/session/service';
 import { Session } from '../src/schemas';
 import { analyzeRequest, fakeExtract } from './fixtures';
-import { bucketFile, storedReceipts, testStorage } from './setup';
+import { receiptExists, storedReceipts, testStorage } from './setup';
 
 const app = createSessionModule(new SessionService(fakeExtract, testStorage()));
 
@@ -46,12 +46,6 @@ async function receiptKey(sessionId: string) {
   const key = receiptFileId(raw?.receiptImageUrl ?? '');
   if (!key) throw new Error(`session ${sessionId} has no receipt image`);
   return key;
-}
-
-function receiptExists(key: string) {
-  return bucketFile(key)
-    .exists()
-    .then(([exists]) => exists);
 }
 
 function addGuest(sessionId: string) {

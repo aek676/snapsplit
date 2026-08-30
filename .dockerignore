@@ -13,7 +13,6 @@ dist
 **/coverage
 .playwright
 .playwright-cli
-.dev
 
 apps/web
 # `bun ci` reads every workspace member's package.json to validate the lockfile,

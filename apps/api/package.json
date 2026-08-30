@@ -13,7 +13,6 @@
     "@ai-sdk/google": "^4.0.43",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/openapi": "^1.4.15",
-    "@google-cloud/storage": "^7.22.0",
     "@repo/shared-types": "workspace:*",
     "@repo/split-logic": "workspace:*",
     "ai": "^7.0.64",

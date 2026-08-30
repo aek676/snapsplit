@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "snapsplit",
+  "compatibility_date": "2026-08-23",
+  "assets": {
+    "directory": "../../dist/apps/web",
+    "not_found_handling": "single-page-application"
+  }
+}
