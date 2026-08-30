@@ -113,5 +113,13 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           known_hosts: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
 
+      - name: Sync deploy scaffold to VM
+        if: vars.DEPLOY_SSH_HOST != ''
+        env:
+          DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: bash .github/scripts/sync-deploy-scaffold.sh
+
       - name: Deploy affected projects
         run: bunx nx affected -t deploy
