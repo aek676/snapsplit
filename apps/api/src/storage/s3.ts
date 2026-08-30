@@ -53,7 +53,7 @@ export class S3ObjectStorage implements ObjectStorage {
       ]);
       return {
         bytes: Buffer.from(bytes),
-        mediaType: type || 'application/octet-stream',
+        mediaType: type?.split(';')[0] || 'application/octet-stream',
       };
     } catch (error) {
       if (isMissingObject(error)) return null;
