@@ -75,9 +75,6 @@ afterAll(async () => {
   await Promise.all([mongoContainer?.stop(), minioContainer?.stop()]);
 });
 
-// Bun's S3 client only speaks to objects, so the bucket is created with the mc
-// binary the minio image ships. MC_HOST_<alias> configures the alias inline and
-// keeps mc from writing a config file into the container.
 async function createTestBucket() {
   const alias = `http://${minioContainer.getUsername()}:${minioContainer.getPassword()}@localhost:9000`;
   const { exitCode, output } = await minioContainer.exec(
