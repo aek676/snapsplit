@@ -6,7 +6,16 @@ terraform {
       source  = "oracle/oci"
       version = "~> 8.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
 
 provider "oci" {}
+provider "time" {}
