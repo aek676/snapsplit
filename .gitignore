@@ -18,6 +18,9 @@ node_modules
 coverage
 *.tsbuildinfo
 
+# Wrangler
+.wrangler
+
 # Vite / Vitest
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
@@ -50,3 +53,11 @@ Thumbs.db
 # Playwright
 .playwright
 .playwright-cli
+
+# Terraform
+iac/.terraform/
+iac/*.tfstate
+iac/*.tfstate.*
+iac/*.tfvars
+!iac/*.tfvars.example
+iac/backend.hcl

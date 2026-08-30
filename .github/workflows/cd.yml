@@ -20,12 +20,14 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
     name: Publish affected images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     env:
       NX_BASE: ${{ inputs.nx-base }}
       NX_HEAD: ${{ inputs.nx-head }}
@@ -63,5 +65,61 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish container images (affected)
+      - name: Publish affected projects
         run: bunx nx affected -t publish
+
+  deploy:
+    name: Deploy affected projects
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      NX_BASE: ${{ inputs.nx-base }}
+      NX_HEAD: ${{ inputs.nx-head }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+      DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+      DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v4
+
+      - name: Get Bun cache dir
+        id: bun-cache-dir
+        run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Bun cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.bun-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Configure SSH for the API host
+        if: vars.DEPLOY_SSH_HOST != ''
+        uses: shimataro/ssh-key-action@v2.8.1
+        with:
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known_hosts: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
+
+      - name: Sync deploy scaffold to VM
+        if: vars.DEPLOY_SSH_HOST != ''
+        env:
+          DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: bash .github/scripts/sync-deploy-scaffold.sh
+
+      - name: Deploy affected projects
+        run: bunx nx affected -t deploy

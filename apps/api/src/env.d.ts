@@ -5,8 +5,11 @@ declare module 'bun' {
     GOOGLE_GENERATIVE_AI_API_KEY: string;
     GEMINI_MODEL?: string;
     RECEIPT_EXTRACTION_MAX_ATTEMPTS?: string;
-    GCS_BUCKET: string;
-    GCS_EMULATOR_HOST?: string;
+    S3_BUCKET: string;
+    S3_ENDPOINT: string;
+    S3_ACCESS_KEY_ID: string;
+    S3_SECRET_ACCESS_KEY: string;
+    S3_REGION?: string;
     TRUST_PROXY?: string;
     CORS_ORIGIN?: string;
     NODE_ENV?: string;

@@ -1,0 +1,19 @@
+services:
+  api:
+    image: ghcr.io/aek676/snapsplit-api:${API_IMAGE_TAG:?run apps/api/scripts/deploy.sh, it sets this}
+    restart: unless-stopped
+    expose:
+      - 3000
+    env_file: .env
+    environment:
+      TRUST_PROXY: 1
+    networks:
+      - appnet
+    labels:
+      caddy: "snapsplit-api.${DUCKDNS_DOMAIN}"
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+networks:
+  appnet:
+    external: true
+    name: appnet

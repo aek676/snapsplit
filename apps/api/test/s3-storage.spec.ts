@@ -4,7 +4,7 @@ import { storedReceipts, testStorage } from './setup';
 
 const storage = testStorage();
 
-describe('GcsObjectStorage against the emulator', () => {
+describe('S3ObjectStorage against MinIO', () => {
   it('round-trips the bytes and the media type', async () => {
     await storage.save('receipt.png', receiptBytes, 'image/png');
 
