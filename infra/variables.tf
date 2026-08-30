@@ -36,22 +36,3 @@ variable "api_user_email" {
   description = "Email for the API's IAM user. OCI requires one; it is never used to sign in, the user only ever authenticates with the S3 key pair."
   type        = string
 }
-
-variable "instance_ocid" {
-  description = <<-EOT
-    OCID of the VM that should receive the scaffold (the one my-oci-iac owns:
-    `terraform output -raw instance_id`). When set, a `null_resource` invokes the
-    OCI CLI `compute instance-agent` Run Command to push compose.yaml,
-    deploy-on-host.sh and .env.example into /opt/apps/snapsplit automatically — no
-    SSH, no manual paste. Leave empty to skip and use the `deploy_pull_commands`
-    output instead.
-
-    Requires the `oci` CLI on the machine running `terraform apply` (the deploying
-    identity must be able to manage instance-agent-command-family in the compartment)
-    and the Oracle Cloud Agent "Instance Run Command" plugin enabled on the VM. The
-    plugin runs as `ocarun`; grant it NOPASSWD sudo once (`ocarun ALL=(ALL) NOPASSWD:ALL`)
-    so the script can write to /opt/apps.
-  EOT
-  type        = string
-  default     = ""
-}
