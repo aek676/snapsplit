@@ -39,7 +39,7 @@ sessionSchema.index(
   { unique: true, partialFilterExpression: { code: { $type: 'string' } } },
 );
 sessionSchema.index({ 'participants.deviceTokenHash': 1 });
-// NOTE: 90 days — keep in sync with the bucket lifecycle rule in infra/
+// NOTE: 90 days — keep in sync with the bucket lifecycle rule in iac/
 sessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
 
 export type Session = InferSchemaType<typeof sessionSchema>;
