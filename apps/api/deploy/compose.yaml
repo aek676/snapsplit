@@ -1,38 +1,19 @@
-# Template for the VM that hosts the API. Copy this file and a .env next to it
-# into DEPLOY_PATH (/opt/snapsplit by default); apps/api/scripts/deploy.sh only
-# rewrites API_IMAGE_TAG in that .env and recreates the service, so everything
-# else about the host lives here and is never overwritten by a deploy.
-#
-# The .env must carry the runtime configuration documented in
-# apps/api/.env.example — at minimum MONGODB_URI, CORS_ORIGIN (a startup error
-# when unset, since the image sets NODE_ENV=production), GCS_BUCKET and
-# GOOGLE_GENERATIVE_AI_API_KEY.
-
 services:
   api:
     image: ghcr.io/aek676/snapsplit-api:${API_IMAGE_TAG:?run apps/api/scripts/deploy.sh, it sets this}
     restart: unless-stopped
-    ports:
-      - 3000:3000
+    expose:
+      - 3000
     env_file: .env
     environment:
-      # The API sits behind a reverse proxy in this topology; without the hop
-      # count the rate limiter keys every caller by the proxy's address and
-      # throttles them as one. See apps/api/.env.example for how to count hops.
       TRUST_PROXY: 1
-    depends_on:
-      - mongo
+    networks:
+      - appnet
+    labels:
+      caddy: "snapsplit-api.${DUCKDNS_DOMAIN}"
+      caddy.reverse_proxy: "{{upstreams 3000}}"
 
-  # Drop this service and point MONGODB_URI at Atlas if you would rather not
-  # run the database yourself — nothing else in the file depends on it.
-  mongo:
-    image: mongo:7.0
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:?set it in .env}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?set it in .env}
-    volumes:
-      - mongo-data:/data/db
-
-volumes:
-  mongo-data:
+networks:
+  appnet:
+    external: true
+    name: appnet

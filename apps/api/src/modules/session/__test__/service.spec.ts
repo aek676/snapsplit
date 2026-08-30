@@ -303,7 +303,7 @@ describe('SessionService.deleteSession', () => {
     );
     const storage = fakeStorage({
       delete: mock(async () => {
-        throw new Error('gcs down');
+        throw new Error('storage down');
       }),
     });
 

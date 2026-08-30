@@ -54,3 +54,10 @@ Thumbs.db
 .playwright
 .playwright-cli
 
+# Terraform
+iac/.terraform/
+iac/*.tfstate
+iac/*.tfstate.*
+iac/*.tfvars
+!iac/*.tfvars.example
+iac/backend.hcl

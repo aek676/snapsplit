@@ -65,7 +65,7 @@ bun nx test:integration api
 ```
 
 It boots two [testcontainers](https://testcontainers.com) for the run
-`mongo:7.0` and the `fsouza/fake-gcs-server` emulator — so it needs a reachable
+`mongo:7.0` and MinIO — so it needs a reachable
 Docker socket; without one it fails while starting the containers rather than
 on an assertion. The first run pulls both images, which is why startup allows
 180s. Neither `bun test` nor `bun nx run-many -t test` includes this target, so
