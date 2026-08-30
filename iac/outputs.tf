@@ -1,5 +1,3 @@
-# These five are the S3_* block of the VM's .env, verbatim.
-
 output "s3_endpoint" {
   description = "S3-compatible endpoint for the tenancy's Object Storage."
   value       = "https://${data.oci_objectstorage_namespace.this.namespace}.compat.objectstorage.${var.region}.oraclecloud.com"

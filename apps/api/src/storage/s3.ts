@@ -35,8 +35,6 @@ export class S3ObjectStorage implements ObjectStorage {
   private client(): S3Client {
     if (!this.clientInstance) {
       if (!this.options.bucket) throw new Error('S3_BUCKET is not set');
-      // Path-style addressing (virtualHostedStyle defaults to false) is what
-      // the OCI compatibility endpoint expects, and MinIO accepts either.
       this.clientInstance = new S3Client(this.options);
     }
     return this.clientInstance;

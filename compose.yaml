@@ -16,7 +16,6 @@ services:
     command: server /data --console-address :9001
     ports:
       - 9000:9000
-      # Web console, http://localhost:9001 with the credentials below.
       - 9001:9001
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -29,8 +28,6 @@ services:
       timeout: 5s
       retries: 12
 
-  # The app never creates buckets, so one run of mc seeds the dev bucket and
-  # exits. Replaces the .dev/gcs seed directory the emulator used to mount.
   minio-init:
     image: minio/mc
     depends_on:

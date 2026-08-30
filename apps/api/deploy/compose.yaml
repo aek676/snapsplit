@@ -1,19 +1,3 @@
-# Template for the VM that hosts the API. Copy this file (and create a .env
-# from .env.example next to it) into DEPLOY_PATH (/opt/apps/snapsplit by
-# default). apps/api/scripts/deploy.sh only rewrites API_IMAGE_TAG in that .env
-# and recreates the service, so everything else about the host lives here and is
-# never overwritten by a deploy.
-#
-# The .env must carry the runtime configuration documented in
-# apps/api/deploy/.env.example — at minimum MONGODB_URI (MongoDB Atlas),
-# DATABASE_NAME, CORS_ORIGIN (a startup error when unset, since the image sets
-# NODE_ENV=production), the S3_* block and GOOGLE_GENERATIVE_AI_API_KEY.
-#
-# TLS and proxying are handled by the central Caddy at /opt/apps/caddy (from
-# my-oci-iac) via caddy-docker-proxy. The API joins the shared appnet network and
-# is exposed through the caddy / caddy.reverse_proxy labels below; it publishes
-# no host port of its own.
-
 services:
   api:
     image: ghcr.io/aek676/snapsplit-api:${API_IMAGE_TAG:?run apps/api/scripts/deploy.sh, it sets this}
@@ -22,16 +6,11 @@ services:
       - 3000
     env_file: .env
     environment:
-      # The API sits behind a reverse proxy in this topology; without the hop
-      # count the rate limiter keys every caller by the proxy's address and
-      # throttles them as one. See apps/api/.env.example for how to count hops.
       TRUST_PROXY: 1
     networks:
       - appnet
     labels:
-      # Host the central Caddy will serve (DuckDNS DNS-01 wildcard cert).
       caddy: "snapsplit-api.${DUCKDNS_DOMAIN}"
-      # Proxy that host to this container's port 3000 over the appnet network.
       caddy.reverse_proxy: "{{upstreams 3000}}"
 
 networks:

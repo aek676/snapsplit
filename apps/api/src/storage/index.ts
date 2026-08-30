@@ -12,8 +12,6 @@ type StorageEnv = Partial<
   >
 >;
 
-// The names match what Bun.S3Client reads from the environment on its own, but
-// they are passed explicitly so createReceiptStorage(env) stays testable.
 export function createReceiptStorage(env: StorageEnv = Bun.env): ObjectStorage {
   return new S3ObjectStorage({
     prefix: 'receipts',
