@@ -61,14 +61,14 @@ export function ReceiptCapture() {
 
 function AnalyzingView({ imageUrl }: { imageUrl: string }) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col">
+    <div className="mx-auto flex min-h-screen w-full max-w-160 flex-col">
       <header className="sticky top-0 z-50 bg-background/80 px-5 py-4 backdrop-blur-md">
         <h1 className="screen-title text-primary-pressed">
           Reading your receipt
         </h1>
       </header>
       <main className="flex flex-1 flex-col items-center justify-center px-5 py-8">
-        <div className="relative aspect-3/4 w-full max-w-[320px] overflow-hidden rounded-lg border border-border bg-surface shadow-(--shadow-soft)">
+        <div className="relative aspect-3/4 w-full max-w-80 overflow-hidden rounded-lg border border-border bg-surface shadow-(--shadow-soft)">
           <img
             src={imageUrl}
             alt="Your receipt"
@@ -92,7 +92,7 @@ type CaptureViewProps = {
 
 function CaptureView({ inputRef, onCapture, errorMessage }: CaptureViewProps) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col pb-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-160 flex-col pb-12">
       <header className="sticky top-0 z-50 flex items-center justify-center bg-background px-5 py-3">
         <Wordmark />
       </header>
@@ -113,7 +113,6 @@ function CaptureView({ inputRef, onCapture, errorMessage }: CaptureViewProps) {
             ref={inputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={(event) => {
               const image = event.target.files?.[0];
