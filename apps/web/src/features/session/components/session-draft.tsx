@@ -138,7 +138,11 @@ function RetakePhotoButton({ session }: { session: Session }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="xl">
+          <AlertDialogCancel
+            variant="ghost"
+            size="xl"
+            disabled={deleteSession.isPending}
+          >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
