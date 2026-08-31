@@ -1,5 +1,16 @@
 import { useNavigate } from '@tanstack/react-router';
 import { AlertTriangle, Camera } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from 'shadcn-ui/alert-dialog';
 import { Button } from 'shadcn-ui/button';
 import { useDeleteSession } from '@/features/session/api/delete-session';
 import { useUpdateSession } from '@/features/session/api/update-session';
@@ -109,21 +120,43 @@ function RetakePhotoButton({ session }: { session: Session }) {
   const deleteSession = useDeleteSession({ sessionId: session.id });
 
   return (
-    <Button
-      variant="secondary"
-      size="xl"
-      className="w-[40%] flex-none"
-      disabled={deleteSession.isPending}
-      onClick={() =>
-        deleteSession.mutate(
-          { sessionId: session.id },
-          { onSettled: () => navigate({ to: '/' }) },
-        )
-      }
-    >
-      <Camera size={20} />
-      Retake photo
-    </Button>
+    <AlertDialog>
+      <AlertDialogTrigger
+        aria-label="Retake photo"
+        render={
+          <Button variant="secondary" size="xl" className="w-11 flex-none px-0">
+            <Camera size={20} />
+          </Button>
+        }
+      ></AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Retake photo?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This receipt and its items will be discarded so you can take a new
+            photo.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="xl">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="xl"
+            disabled={deleteSession.isPending}
+            onClick={() =>
+              deleteSession.mutate(
+                { sessionId: session.id },
+                { onSettled: () => navigate({ to: '/' }) },
+              )
+            }
+          >
+            Retake
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
