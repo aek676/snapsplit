@@ -15,6 +15,8 @@ exec docker buildx build \
 	--file apps/api/Dockerfile \
 	--target prebuilt \
 	--platform linux/amd64,linux/arm64 \
+	--cache-from "type=registry,ref=$image:buildcache" \
+	--cache-to "type=registry,ref=$image:buildcache,mode=max" \
 	"$@" \
 	--label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
 	--label "org.opencontainers.image.revision=$GITHUB_SHA" \
