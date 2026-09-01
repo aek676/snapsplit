@@ -162,7 +162,7 @@ function RetakePhotoButton({ session }: { session: Session }) {
               )
             }
           >
-            Retake
+            {deleteSession.isPending ? 'Retaking…' : 'Retake'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
