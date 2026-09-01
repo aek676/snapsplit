@@ -120,7 +120,13 @@ function RetakePhotoButton({ session }: { session: Session }) {
   const deleteSession = useDeleteSession({ sessionId: session.id });
 
   return (
-    <AlertDialog>
+    <AlertDialog
+      onOpenChange={(open, eventDetails) => {
+        if (!open && deleteSession.isPending) {
+          eventDetails.cancel();
+        }
+      }}
+    >
       <AlertDialogTrigger
         aria-label="Retake photo"
         render={
